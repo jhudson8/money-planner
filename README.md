@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Plans and named scenarios save automatically in the browser. The JSON tab can export or import a copy of the active scenario.
+Plans and named scenarios save automatically in the browser. The JSON tab can export or import a copy of the active scenario. foo
 
 ## Tests
 
