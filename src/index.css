@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: corporate --default, business --prefersdark;
+}
+
+input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+}
