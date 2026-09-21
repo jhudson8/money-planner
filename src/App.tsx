@@ -13,8 +13,8 @@ import { TimelineTab } from './components/TimelineTab'
 import { createDefaultPlan } from './defaultPlan'
 import { shorthandUsd, usd, yearsPhrase } from './format'
 import {
+  alignHistoricalAccountStartYears,
   clampHistoricalStartYear,
-  listResolvableMarketPeriods,
 } from './marketHistory'
 import {
   currentNetWorth,
@@ -159,17 +159,15 @@ function AppInner() {
             Math.max(minStart, clampHistoricalStartYear(currentStart + delta, simYears)),
           )
           const accountName = account.name.trim() || labelForKind(account.kind)
+          const historicalCount = accounts.filter((item) => item.returnMode === 'historical').length
           if (nextStart === currentStart) {
             toast.message(`${accountName}: S&P start already ${currentStart}`, {
               id: 'sp-start-year',
             })
             return current
           }
-          const matching = listResolvableMarketPeriods(simYears).find(
-            (period) => period.startYear === nextStart,
-          )
           toast.success(
-            `${accountName}: S&P from ${nextStart} → ${nextStart + simYears - 1}`,
+            `${historicalCount} S&P ${historicalCount === 1 ? 'account' : 'accounts'}: ${nextStart} → ${nextStart + simYears - 1}`,
             {
               id: 'sp-start-year',
               description: 'Shift+← / Shift+→ to adjust',
@@ -177,15 +175,7 @@ function AppInner() {
           )
           return withActivePlan(current, {
             ...active.plan,
-            accounts: accounts.map((item) =>
-              item.id === accountId
-                ? {
-                    ...item,
-                    historicalStartYear: nextStart,
-                    historicalPeriodId: matching?.periodId,
-                  }
-                : item,
-            ),
+            accounts: alignHistoricalAccountStartYears(accounts, nextStart, simYears),
           })
         })
         return

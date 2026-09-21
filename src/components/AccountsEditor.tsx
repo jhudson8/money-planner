@@ -19,6 +19,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { createEmptyLongTerm } from '../defaultPlan'
 import { formatPercent, usd, yearsPhrase } from '../format'
 import {
+  alignHistoricalAccountStartYears,
   clampHistoricalStartYear,
   formatReturnPathSummary,
   getMarketPeriod,
@@ -109,7 +110,19 @@ export function AccountsEditor({ plan, projection, onChange }: AccountsEditorPro
   }
 
   function update(id: string, next: SavingsAccount) {
-    commit(accounts.map((account) => (account.id === id ? next : account)))
+    const previous = accounts.find((account) => account.id === id)
+    const nextStart = next.historicalStartYear
+    const changedStartYear =
+      previous?.returnMode === 'historical' &&
+      next.returnMode === 'historical' &&
+      previous.historicalStartYear !== nextStart &&
+      nextStart != null
+    const updated = accounts.map((account) => (account.id === id ? next : account))
+    commit(
+      changedStartYear
+        ? alignHistoricalAccountStartYears(updated, nextStart, simYears)
+        : updated,
+    )
     if (next.returnMode === 'historical') {
       setLastSpSliderAccountId(next.id)
     }
@@ -932,7 +945,8 @@ function AccountDetailPane({
                 <div className="flex justify-between text-[10px] text-base-content/50 tabular-nums mt-1 gap-2">
                   <span>{minStart}</span>
                   <span className="text-center">
-                    S&P data {SP500_DATA_START}–{SP500_DATA_END} · Shift+← / Shift+→ to nudge
+                    Applies to all S&P accounts · data {SP500_DATA_START}–{SP500_DATA_END} ·
+                    Shift+← / Shift+→ to nudge
                   </span>
                   <span>{maxStart}</span>
                 </div>

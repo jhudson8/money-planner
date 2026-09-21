@@ -374,6 +374,29 @@ export function listResolvableMarketPeriods(simulationYears: number): ResolvedRe
   )
 }
 
+/** Keep every account using historical S&P returns on the same replay window. */
+export function alignHistoricalAccountStartYears<
+  T extends {
+    returnMode?: 'flat' | 'historical'
+    historicalStartYear?: number
+    historicalPeriodId?: string
+  },
+>(accounts: T[], startYear: number, simulationYears: number): T[] {
+  const nextStart = clampHistoricalStartYear(startYear, simulationYears)
+  const matching = listResolvableMarketPeriods(simulationYears).find(
+    (period) => period.startYear === nextStart,
+  )
+  return accounts.map((account) =>
+    account.returnMode === 'historical'
+      ? {
+          ...account,
+          historicalStartYear: nextStart,
+          historicalPeriodId: matching?.periodId,
+        }
+      : account,
+  )
+}
+
 export function formatReturnPathSummary(resolved: ResolvedReturnPath, simulationYears?: number): string {
   const years = simulationYears ?? resolved.returns.length
   const wrap = resolved.wrapped
