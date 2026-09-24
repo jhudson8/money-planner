@@ -10,6 +10,7 @@ import { ScenarioBar } from './components/ScenarioBar'
 import { SummaryTab } from './components/SummaryTab'
 import { SweepTab } from './components/SweepTab'
 import { TimelineTab } from './components/TimelineTab'
+import { ChallengeTab } from './components/ChallengeTab'
 import { createDefaultPlan } from './defaultPlan'
 import { shorthandUsd, usd, yearsPhrase } from './format'
 import {
@@ -52,6 +53,7 @@ const TABS = [
   { id: 'timeline', label: 'Timeline' },
   { id: 'chart', label: 'Net worth' },
   { id: 'sweep', label: 'S&P sweep' },
+  { id: 'challenge', label: 'External AI Sanity Check' },
   { id: 'json', label: 'JSON' },
 ] as const
 
@@ -349,6 +351,9 @@ function AppInner() {
         {tab === 'summary' ? <SummaryTab plan={plan} projection={projection} /> : null}
         {tab === 'chart' ? <ChartTab plan={plan} projection={projection} /> : null}
         {tab === 'sweep' ? <SweepTab plan={plan} onChange={setPlan} /> : null}
+        {tab === 'challenge' ? (
+          <ChallengeTab plan={plan} projection={projection} scenarioName={scenario.name} />
+        ) : null}
         {tab === 'json' ? (
           <JsonTab key={scenario.id} plan={plan} onChange={setPlan} />
         ) : null}
