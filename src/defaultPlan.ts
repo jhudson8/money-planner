@@ -82,6 +82,8 @@ export function createDefaultPlan(): Plan {
     keepWalletFull: false,
     replenishWaitMode: 'off',
     replenishGrowthPercent: 5,
+    buyDipEnabled: false,
+    buyDipTriggerPercent: 10,
     accounts: [
       createAccount('shortTerm'),
       createAccount('longTerm', { name: 'Brokerage', amount: 500_000, depletionOrder: 1 }),

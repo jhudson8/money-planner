@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { alignHistoricalAccountStartYears } from './marketHistory'
+import {
+  alignHistoricalAccountStartYears,
+  maxHistoricalStartYear,
+  resolveMarketPeriod,
+  resolveReturnPath,
+} from './marketHistory'
+
+describe('complete historical windows', () => {
+  it('limits a 49-year simulation to the latest complete real-market window', () => {
+    expect(maxHistoricalStartYear(49)).toBe(1976)
+
+    const path = resolveReturnPath(1988, 49)
+    expect(path).toMatchObject({
+      startYear: 1976,
+      endYear: 2024,
+      wrapped: false,
+      cycleLength: 49,
+    })
+    expect(path?.returns).toHaveLength(49)
+  })
+
+  it('omits presets that cannot supply the full simulation horizon', () => {
+    expect(resolveMarketPeriod('post-gfc-boom', 49)).toBeNull()
+  })
+})
 
 describe('alignHistoricalAccountStartYears', () => {
   it('updates every historical account and leaves flat-rate accounts unchanged', () => {

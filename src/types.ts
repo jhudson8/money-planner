@@ -111,6 +111,10 @@ export interface Plan {
    * Used when replenishWaitMode is 'yoyGrowth'. Default 5.
    */
   replenishGrowthPercent: number
+  /** Buy after a large down year by moving wallet cash above one year of need to primary long-term. */
+  buyDipEnabled?: boolean
+  /** Primary long-term annual loss that activates the buy-the-dip strategy. */
+  buyDipTriggerPercent?: number
   accounts: SavingsAccount[]
   incomeSources: CashFlowSource[]
   expenseSources: CashFlowSource[]
@@ -133,7 +137,7 @@ export interface AccountMove {
   sold: number
   tax: number
   net: number
-  reason: 'sale' | 'rmd' | 'transfer'
+  reason: 'sale' | 'rmd' | 'transfer' | 'rebalance'
 }
 
 export interface YearProjection {

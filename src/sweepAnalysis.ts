@@ -84,7 +84,7 @@ export function compareSettingsBetterFirst(a: SweepSetting, b: SweepSetting): nu
 export function historicalStartYearBounds(plan: Plan): { min: number; max: number } {
   const years = yearsToProject(plan)
   const min = minHistoricalStartYear(years)
-  const max = Math.max(min, maxHistoricalStartYear(years) - years + 1)
+  const max = maxHistoricalStartYear(years)
   return { min, max }
 }
 

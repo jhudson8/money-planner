@@ -694,7 +694,7 @@ function AccountDetailPane({
   const returnMode = account.returnMode === 'historical' ? 'historical' : 'flat'
   const periods = listResolvableMarketPeriods(simulationYears)
   const minStart = minHistoricalStartYear(simulationYears)
-  const maxStart = Math.max(minStart, maxHistoricalStartYear(simulationYears) - simulationYears + 1)
+  const maxStart = maxHistoricalStartYear(simulationYears)
   const defaultPeriod = periods.find((p) => p.periodId === 'post-gfc-boom') ?? periods[0]
   const defaultStart = Math.min(
     defaultPeriod?.startYear ?? clampHistoricalStartYear(2009, simulationYears),
@@ -965,7 +965,6 @@ function AccountDetailPane({
                       <span className="text-[11px] text-base-content/60">
                         Simple average of the {simulationYears} yearly S&P returns from {startYear}–
                         {startYear + simulationYears - 1}
-                        {resolved.wrapped ? ' (with wrap)' : ''}
                       </span>
                     </div>
                     <div className="text-right text-[11px] tabular-nums text-base-content/65">
@@ -992,9 +991,8 @@ function AccountDetailPane({
                   </p>
                   <p className="text-base-content/60">
                     Each simulation year applies that calendar year&apos;s S&P % in order, starting at{' '}
-                    {resolved.startYear}. If the plan reaches the end of the downloaded data (
-                    {resolved.endYear}), it starts over again at {resolved.startYear} — not at the
-                    beginning of the full series — and continues until the plan ends.
+                    {resolved.startYear} and ending at {resolved.endYear}. Only start years with
+                    enough consecutive real market data for the full plan can be selected.
                   </p>
                   <details className="mt-1">
                     <summary className="cursor-pointer font-medium text-base-content/70">
@@ -1002,12 +1000,10 @@ function AccountDetailPane({
                     </summary>
                     <ul className="mt-2 max-h-40 overflow-y-auto columns-2 sm:columns-3 gap-3 text-[11px] tabular-nums">
                       {resolved.returns.map((pct, index) => {
-                        const histYear =
-                          resolved.startYear + (index % resolved.cycleLength)
+                        const histYear = resolved.startYear + index
                         return (
                           <li key={`y${index + 1}`} className="break-inside-avoid">
-                            y{index + 1} ({histYear}
-                            {index >= resolved.cycleLength ? '↻' : ''}):{' '}
+                            y{index + 1} ({histYear}):{' '}
                             <span className={pct < 0 ? 'text-error' : 'text-success'}>
                               {formatPercent(pct, 1)}
                             </span>

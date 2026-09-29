@@ -275,6 +275,52 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
                     </div>
                   )}
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <fieldset className="fieldset min-w-0">
+                    <legend className="fieldset-legend">Buy after a market drop</legend>
+                    <label className="flex cursor-pointer items-center gap-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary"
+                        checked={plan.buyDipEnabled === true}
+                        onChange={(event) => patch({ buyDipEnabled: event.target.checked })}
+                      />
+                      <span className="text-sm">
+                        {plan.buyDipEnabled ? 'On · invest excess low-risk cash' : 'Off'}
+                      </span>
+                    </label>
+                    <p className="label whitespace-normal">
+                      After a large down year, keep the next year of spending minus income in the
+                      low-risk wallet and move the excess into the primary long-term account. Resume
+                      the normal replenish window after the market path recovers to its prior peak.
+                    </p>
+                  </fieldset>
+                  {plan.buyDipEnabled ? (
+                    <NumberField
+                      label="Drop that triggers buying"
+                      masked={presentation}
+                      value={plan.buyDipTriggerPercent ?? 10}
+                      min={0}
+                      max={50}
+                      step={0.5}
+                      suffix="% in one year"
+                      hint="Uses the primary long-term account’s return before deposits, withdrawals, or transfers."
+                      onChange={(buyDipTriggerPercent) =>
+                        patch({
+                          buyDipTriggerPercent: Math.min(
+                            50,
+                            Math.max(0, buyDipTriggerPercent),
+                          ),
+                        })
+                      }
+                    />
+                  ) : (
+                    <div className="rounded-box border border-base-200 bg-base-200/40 p-3 text-xs text-base-content/65 self-end">
+                      Enable this to temporarily reduce the low-risk reserve to one year and invest
+                      the rest after the selected percentage decline.
+                    </div>
+                  )}
+                </div>
                 {chartEndsBeforeRmd ? (
                   <div className="alert alert-warning">
                     <span>

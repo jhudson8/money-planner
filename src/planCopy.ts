@@ -218,6 +218,7 @@ function transferEvents(plan: Plan, projection: Projection): TimelineEvent[] {
     const sales = moves.filter((move) => move.reason === 'sale')
     const rmds = moves.filter((move) => move.reason === 'rmd')
     const transfers = moves.filter((move) => move.reason === 'transfer')
+    const rebalances = moves.filter((move) => move.reason === 'rebalance')
     const events: TimelineEvent[] = []
     const whenLabel = point.yearOffset === 0 ? 'today' : formatYearsFromNow(point.yearOffset)
     const calendarYear = calendarYearAtOffset(point.yearOffset)
@@ -265,6 +266,19 @@ function transferEvents(plan: Plan, projection: Projection): TimelineEvent[] {
               ? 'Wallet top-up'
               : 'Wallet refill',
         detail: `Sold ${usd.format(sold)} from ${from} into the wallet (${usd.format(net)} after tax).${taxPart}`,
+      })
+    }
+
+    for (const move of rebalances) {
+      events.push({
+        id: `rebalance:${move.fromId}:${point.yearOffset}`,
+        yearOffset: point.yearOffset,
+        calendarYear,
+        age,
+        whenLabel,
+        kind: 'transfer',
+        title: `Bought after a market drop`,
+        detail: `Kept one year of net spending in ${move.fromName} and moved ${usd.format(move.net)} into ${move.toName}. No sale tax applies to this internal cash move.`,
       })
     }
 

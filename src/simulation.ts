@@ -330,8 +330,11 @@ function spendingNeed(plan: Plan, yearOffset: number): number {
 }
 
 export function replenishSpendingNeed(plan: Plan, fromYear: number): number {
+  return spendingNeedForYears(plan, fromYear, replenishYears(plan))
+}
+
+function spendingNeedForYears(plan: Plan, fromYear: number, windowYears: number): number {
   const lastYear = yearsToProject(plan)
-  const windowYears = replenishYears(plan)
   let total = 0
   for (let year = fromYear; year < fromYear + windowYears && year <= lastYear; year += 1) {
     total += spendingNeed(plan, year)
@@ -410,14 +413,47 @@ function refillWallet(
   plan: Plan,
   accounts: AccountState[],
   fromYear: number,
+  windowYears = replenishYears(plan),
 ): { tax: number; net: number; moves: AccountMove[] } {
-  const target = replenishSpendingNeed(plan, fromYear)
+  const target = spendingNeedForYears(plan, fromYear, windowYears)
   const short = wallet(accounts)
   const gap = target - short.amount
   if (gap <= 0.005) return emptyTransfer()
   const sold = sellForNet(accounts, short, gap, fromYear)
   short.amount += sold.net
   return sold
+}
+
+function manageDipWallet(
+  plan: Plan,
+  accounts: AccountState[],
+  nextYear: number,
+): { tax: number; net: number; moves: AccountMove[] } {
+  if (nextYear > yearsToProject(plan)) return emptyTransfer()
+  const short = wallet(accounts)
+  const high = primarySource(accounts)
+  if (short.id === high.id) return emptyTransfer()
+  const target = spendingNeedForYears(plan, nextYear, 1)
+  const excess = short.amount - target
+  if (excess > 0.005) {
+    short.amount -= excess
+    high.amount += excess
+    return {
+      tax: 0,
+      net: 0,
+      moves: [{
+        fromId: short.id,
+        fromName: short.name,
+        toId: high.id,
+        toName: high.name,
+        sold: excess,
+        tax: 0,
+        net: excess,
+        reason: 'rebalance',
+      }],
+    }
+  }
+  return refillWallet(plan, accounts, nextYear, 1)
 }
 
 /**
@@ -667,6 +703,10 @@ export function simulate(plan: Plan): Projection {
   const startAge = rmdStartAge(plan.birthDate)
   let depletedInYear: number | null = totalOf(accounts) <= 0 ? 0 : null
   let highWaterMark = primarySource(accounts).amount
+  let primaryMarketIndex = 1
+  let primaryMarketPeak = 1
+  let dipActive = false
+  let dipRecoveryIndex = 1
 
   const beforeOpen = snapshotParts(accounts)
   const ageToday = ageAtPlanYear(plan, 0)
@@ -713,6 +753,7 @@ export function simulate(plan: Plan): Projection {
     const rmd = applyRmds(accounts, previous, age, startAge)
     const accountMoves: AccountMove[] = [...rmd.moves]
 
+    const growthBases = snapshotParts(accounts)
     const partGrowth = snapshotGrowth(accounts, yearOffset)
     const growth = Object.values(partGrowth).reduce((sum, value) => sum + value, 0)
     for (const account of accounts) {
@@ -724,6 +765,21 @@ export function simulate(plan: Plan): Projection {
 
     // Peak for recovery mode: post-growth / post-transfer, before optional sells.
     const markBalance = primarySource(accounts).amount
+    const primary = primarySource(accounts)
+    const primaryBase = growthBases[primary.id] ?? 0
+    const primaryReturn = primaryBase > 0.005 ? (partGrowth[primary.id] ?? 0) / primaryBase : 0
+    primaryMarketIndex *= Math.max(0, 1 + primaryReturn)
+    if (dipActive && primaryMarketIndex + 1e-12 >= dipRecoveryIndex) {
+      dipActive = false
+    }
+    if (
+      plan.buyDipEnabled === true &&
+      primaryReturn <= -Math.max(0, plan.buyDipTriggerPercent ?? 10) / 100
+    ) {
+      dipActive = true
+      dipRecoveryIndex = primaryMarketPeak
+    }
+    primaryMarketPeak = Math.max(primaryMarketPeak, primaryMarketIndex)
 
     let taxesPaid = rmd.tax + transfers.tax
     let walletRefill = 0
@@ -744,7 +800,9 @@ export function simulate(plan: Plan): Projection {
     walletRefill += spent.walletRefill
     accountMoves.push(...spent.accountMoves)
 
-    const topped = topUpWalletWindow(plan, accounts, yearOffset, previous, highWaterMark)
+    const topped = dipActive
+      ? manageDipWallet(plan, accounts, yearOffset + 1)
+      : topUpWalletWindow(plan, accounts, yearOffset, previous, highWaterMark)
     taxesPaid += topped.tax
     walletRefill += topped.net
     accountMoves.push(...topped.moves)

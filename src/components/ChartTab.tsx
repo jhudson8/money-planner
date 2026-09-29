@@ -908,6 +908,17 @@ function YearTooltip({
         </>
       ) : null}
 
+      {(point.accountMoves ?? []).some((move) => move.reason === 'rebalance') ? (
+        <>
+          <p className="font-medium text-success">Buy-the-dip rebalance</p>
+          <MoveList
+            moves={(point.accountMoves ?? []).filter((move) => move.reason === 'rebalance')}
+            presentation={presentation}
+            startNetWorth={startNetWorth}
+          />
+        </>
+      ) : null}
+
       <p className={`font-medium ${(point.accountMoves ?? []).some((move) => move.reason === 'rmd') ? 'mt-1.5' : ''}`}>
         Accounts
       </p>
@@ -1046,6 +1057,10 @@ function MoveList({
               Transferred {relMoney(move.sold, presentation, startNetWorth, true)}
               {move.tax > 0 ? ` · tax ${relMoney(move.tax, presentation, startNetWorth, true)}` : ''} · {move.toName} received{' '}
               {relMoney(move.net, presentation, startNetWorth, true)}
+            </p>
+          ) : move.reason === 'rebalance' ? (
+            <p className="text-[10px] text-base-content/60">
+              Moved {relMoney(move.net, presentation, startNetWorth, true)} from the wallet into {move.toName}
             </p>
           ) : (
             <p className="text-[10px] text-base-content/60">

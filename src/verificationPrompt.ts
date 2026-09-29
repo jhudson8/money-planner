@@ -58,18 +58,17 @@ function describeAccounts(accounts: SavingsAccount[], years: number): string {
     .join('\n')
 }
 
-/** Calendar year mapped to each simulation growth year for an S&P path (with wrap). */
+/** Calendar year mapped to each simulation growth year for a consecutive S&P path. */
 function sp500YearMap(
   startYear: number,
   returns: number[],
-  wrapped: boolean,
-  cycleLength: number,
+  _wrapped: boolean,
+  _cycleLength: number,
 ): { simulationYear: number; calendarYear: number; claimedReturnPercent: number; wrappedRepeat: boolean }[] {
   return returns.map((claimedReturnPercent, index) => {
     const simulationYear = index + 1
-    const offsetInCycle = cycleLength > 0 ? index % cycleLength : index
-    const calendarYear = startYear + offsetInCycle
-    const wrappedRepeat = wrapped && index >= cycleLength
+    const calendarYear = startYear + index
+    const wrappedRepeat = false
     return { simulationYear, calendarYear, claimedReturnPercent, wrappedRepeat }
   })
 }
@@ -141,11 +140,11 @@ function buildSp500ExternalVerification(plan: Plan, years: number): {
     '2) Compare each claimedReturnPercent to your external figure for that calendar year.',
     '3) Flag any year where the absolute difference is material (e.g. > ~0.5 percentage points),',
     '   and state your source + the external %. Note methodology differences (price-only vs total return).',
-    '4) Confirm mapping: simulation year k uses calendar year = startYear + ((k-1) mod cycleLength),',
-    '   wrapping back to startYear when the path repeats.',
+    '4) Confirm mapping: simulation year k uses calendar year = startYear + (k-1),',
+    '   with no repeated years and enough source data for the full simulation window.',
     '5) Then verify dollar growth: for each sim year, growth$ ≈ startBalance × (appliedReturnPct/100)',
     '   (before sales/transfers that year). Flag arithmetic mismatches even if the % matches S&P.',
-    '6) Summarize: pass / fail per account, list mismatched years, and whether wrap years reused the cycle correctly.',
+    '6) Summarize: pass / fail per account and list every mismatched year.',
     '',
     ...blocks,
   ].join('\n')
@@ -171,7 +170,7 @@ function shortMoves(moves: AccountMove[]): string {
   if (moves.length === 0) return '(none)'
   return moves
     .map((m) => {
-      const tag = m.reason === 'rmd' ? 'RMD' : m.reason === 'transfer' ? 'TRANSFER' : 'SALE'
+      const tag = m.reason === 'rmd' ? 'RMD' : m.reason === 'transfer' ? 'TRANSFER' : m.reason === 'rebalance' ? 'REBALANCE' : 'SALE'
       return `${tag} ${m.fromName}→${m.toName} sold=$${$(m.sold)} tax=$${$(m.tax)} net=$${$(m.net)}`
     })
     .join('; ')
@@ -422,6 +421,7 @@ const PLAN_RULES = `PLAN / ENGINE RULES (simplified model — do not invent IRS 
 - Income is tracked for need=max(0, expenses−income) but is not deposited into account balances in this model.
 - replenishYears: cadence refill target = sum of max(0,exp−inc) over the next replenishYears. keepWalletFull=false: optional refill when yearOffset % replenishYears == 0, and always when wallet < that year's need. keepWalletFull=true: after each year optionally top up so wallet still holds a full window (skip pure cadence).
 - replenishWaitMode gates OPTIONAL cadence/top-up only: off = allow; yoyGrowth = primary longTerm must be up ≥ replenishGrowthPercent vs prior year; recoverHigh = primary longTerm must be at/above its prior post-growth peak after a drop. REQUIRED refill when wallet cannot cover the year's need always runs.
+- buyDipEnabled: when the primary longTerm return is down by at least buyDipTriggerPercent in one year, retain only the next year of net spending in the wallet and move excess wallet cash to primary longTerm. Maintain that one-year wallet until the primary market-return index recovers to its prior peak, then resume the normal replenish policy.
 - Year order for y≥1: RMD → growth → scheduled transfer → cadence refill → spend → optional keep-full top-up. y0: opening transfers/RMDs/spend from wallet; no investment growth.
 - Verify EVERY year and EVERY account against ACCOUNT KIND RULES, PER-ACCOUNT RULES, and these PLAN RULES. Recalculate anything that looks off.`
 
@@ -439,7 +439,7 @@ export function buildVerificationPrompt(
 
   const config = [
     `PLAN "${name}" | asOf=${todayIsoDate()} birth=${plan.birthDate ?? 'none'} age=${ageToday ?? '?'} untilAge=${plan.planUntilAge} years=0..${years}`,
-    `replenishYears=${replenishYears(plan)} keepWalletFull=${keepWalletFull(plan)} replenishWaitMode=${replenishWaitMode(plan)} replenishGrowthPercent=${replenishGrowthPercent(plan)}`,
+    `replenishYears=${replenishYears(plan)} keepWalletFull=${keepWalletFull(plan)} replenishWaitMode=${replenishWaitMode(plan)} replenishGrowthPercent=${replenishGrowthPercent(plan)} buyDipEnabled=${plan.buyDipEnabled === true} buyDipTriggerPercent=${plan.buyDipTriggerPercent ?? 10}`,
     `startNW=$${$(projection.startNetWorth)} y0NW=$${$(y0?.netWorth ?? 0)} endNW=$${$(projection.endNetWorth)} depletedInYear=${projection.depletedInYear ?? 'never'} blendedReturn=${projection.blendedReturnPercent.toFixed(2)}%`,
     '',
     'INITIAL ACCOUNT BALANCES / RETURN PATHS:',
@@ -602,7 +602,7 @@ export function logVerificationPrompt(
         'Independently verify each claimed calendar-year total return % against an external S&P source (Shiller, Damodaran, Slickcharts, Yahoo Finance yearly, etc.).',
         'Prefer total return including dividends; note methodology differences if comparing to price-only series.',
         'Flag material mismatches (e.g. > ~0.5 pp) with your source and external %.',
-        'Confirm wrap mapping and that growth$ ≈ startBalance × (appliedReturnPct/100).',
+        'Confirm consecutive calendar-year mapping and that growth$ ≈ startBalance × (appliedReturnPct/100).',
       ],
       accounts: sp500.accounts,
     },

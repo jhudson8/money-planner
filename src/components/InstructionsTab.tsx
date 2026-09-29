@@ -14,9 +14,11 @@ type YearActions = {
   sales: AccountMove[]
   transfers: AccountMove[]
   rmds: AccountMove[]
+  rebalances: AccountMove[]
   totalSold: number
   totalTax: number
   totalNet: number
+  totalRebalanced: number
 }
 
 function yearActions(point: YearProjection): YearActions {
@@ -24,20 +26,23 @@ function yearActions(point: YearProjection): YearActions {
   const sales = moves.filter((m) => m.reason === 'sale')
   const transfers = moves.filter((m) => m.reason === 'transfer')
   const rmds = moves.filter((m) => m.reason === 'rmd')
-  const all = [...sales, ...transfers, ...rmds]
+  const rebalances = moves.filter((m) => m.reason === 'rebalance')
+  const soldMoves = [...sales, ...transfers, ...rmds]
   return {
     point,
     sales,
     transfers,
     rmds,
-    totalSold: all.reduce((sum, m) => sum + m.sold, 0),
-    totalTax: all.reduce((sum, m) => sum + m.tax, 0),
-    totalNet: all.reduce((sum, m) => sum + m.net, 0),
+    rebalances,
+    totalSold: soldMoves.reduce((sum, m) => sum + m.sold, 0),
+    totalTax: soldMoves.reduce((sum, m) => sum + m.tax, 0),
+    totalNet: soldMoves.reduce((sum, m) => sum + m.net, 0),
+    totalRebalanced: rebalances.reduce((sum, m) => sum + m.net, 0),
   }
 }
 
 function hasActions(actions: YearActions): boolean {
-  return actions.sales.length + actions.transfers.length + actions.rmds.length > 0
+  return actions.sales.length + actions.transfers.length + actions.rmds.length + actions.rebalances.length > 0
 }
 
 function yearHeading(point: YearProjection): string {
@@ -297,7 +302,7 @@ function TodayPanel({
   windowYears: number
   presentation: boolean
 }) {
-  const { point, sales, transfers, rmds } = actions
+  const { point, sales, transfers, rmds, rebalances } = actions
   const active = hasActions(actions)
 
   return (
@@ -359,6 +364,15 @@ function TodayPanel({
                   presentation={presentation}
                 />
               ))}
+              {rebalances.map((move, index) => (
+                <InstructionStep
+                  key={`rebalance-${move.fromId}-${index}`}
+                  number={sales.length + transfers.length + rmds.length + index + 1}
+                  kind="rebalance"
+                  move={move}
+                  presentation={presentation}
+                />
+              ))}
             </ol>
 
             <TaxSummary actions={actions} presentation={presentation} />
@@ -378,15 +392,24 @@ function TotalsBadges({
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <span className="badge badge-warning badge-lg tabular-nums font-semibold">
-        Sell {maskUsd(actions.totalSold, presentation, usd)}
-      </span>
+      {actions.totalSold > 0.005 ? (
+        <span className="badge badge-warning badge-lg tabular-nums font-semibold">
+          Sell {maskUsd(actions.totalSold, presentation, usd)}
+        </span>
+      ) : null}
+      {actions.totalRebalanced > 0.005 ? (
+        <span className="badge badge-success badge-lg tabular-nums font-semibold">
+          Invest {maskUsd(actions.totalRebalanced, presentation, usd)}
+        </span>
+      ) : null}
       <span className="badge badge-error badge-outline badge-lg tabular-nums font-semibold">
         Tax ~{maskUsd(actions.totalTax, presentation, usd)}
       </span>
-      <span className="badge badge-success badge-outline badge-lg tabular-nums font-semibold">
-        Move {maskUsd(actions.totalNet, presentation, usd)}
-      </span>
+      {actions.totalNet > 0.005 ? (
+        <span className="badge badge-success badge-outline badge-lg tabular-nums font-semibold">
+          Move {maskUsd(actions.totalNet, presentation, usd)}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -398,7 +421,7 @@ function InstructionStep({
   presentation,
 }: {
   number: number
-  kind: 'sale' | 'transfer' | 'rmd'
+  kind: 'sale' | 'transfer' | 'rmd' | 'rebalance'
   move: AccountMove
   presentation: boolean
 }) {
@@ -407,10 +430,12 @@ function InstructionStep({
       ? `Sell from ${move.fromName}`
       : kind === 'transfer'
         ? `Transfer / mature ${move.fromName}`
-        : `Take RMD from ${move.fromName}`
+        : kind === 'rmd'
+          ? `Take RMD from ${move.fromName}`
+          : `Invest excess from ${move.fromName}`
 
   const verb =
-    kind === 'sale' ? 'Sell' : kind === 'transfer' ? 'Sell / transfer' : 'Distribute (RMD)'
+    kind === 'sale' ? 'Sell' : kind === 'transfer' ? 'Sell / transfer' : kind === 'rmd' ? 'Distribute (RMD)' : 'Move'
 
   const destinationHint =
     kind === 'sale'
@@ -433,10 +458,12 @@ function InstructionStep({
                 ? 'badge-warning'
                 : kind === 'transfer'
                   ? 'badge-primary'
-                  : 'badge-info'
+                  : kind === 'rmd'
+                    ? 'badge-info'
+                    : 'badge-success'
             }`}
           >
-            {kind === 'sale' ? 'Wallet refill' : kind === 'transfer' ? 'Account transfer' : 'RMD'}
+            {kind === 'sale' ? 'Wallet refill' : kind === 'transfer' ? 'Account transfer' : kind === 'rmd' ? 'RMD' : 'Buy the dip'}
           </span>
         </div>
 
@@ -549,7 +576,7 @@ function UpcomingYearCard({
   actions: YearActions
   presentation: boolean
 }) {
-  const { point, sales, transfers, rmds } = actions
+  const { point, sales, transfers, rmds, rebalances } = actions
 
   return (
     <article className="rounded-box border border-base-200 bg-base-200/20 p-4 flex flex-col gap-3">
@@ -575,7 +602,7 @@ function UpcomingYearCard({
       </div>
 
       <ul className="flex flex-col gap-2 text-sm">
-        {[...sales, ...transfers, ...rmds].map((move, index) => (
+        {[...sales, ...transfers, ...rmds, ...rebalances].map((move, index) => (
           <li
             key={`${point.yearOffset}-${move.reason}-${move.fromId}-${index}`}
             className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 rounded-box bg-base-100 border border-base-200 px-3 py-2"
@@ -585,7 +612,7 @@ function UpcomingYearCard({
               <span className="text-base-content/50"> → </span>
               <span className="font-medium">{move.toName}</span>
               <span className="badge badge-ghost badge-xs ml-2 align-middle">
-                {move.reason === 'sale' ? 'sell' : move.reason === 'transfer' ? 'transfer' : 'rmd'}
+                {move.reason === 'sale' ? 'sell' : move.reason === 'transfer' ? 'transfer' : move.reason === 'rebalance' ? 'buy dip' : 'rmd'}
               </span>
             </span>
             <span className="tabular-nums text-xs sm:text-sm text-base-content/75">

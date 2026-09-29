@@ -233,7 +233,7 @@ export const MARKET_PERIODS: readonly MarketPeriodDef[] = [
 
 export type ResolvedReturnPath = {
   startYear: number
-  /** Last calendar year used before wrapping (end of the source cycle). */
+  /** Last calendar year used by this simulation window. */
   endYear: number
   returns: number[]
   /** Compound average annual return across the simulation window. */
@@ -246,9 +246,9 @@ export type ResolvedReturnPath = {
   label: string
   blurb?: string
   tone?: MarketPeriodTone
-  /** True when the path repeats from startYear because the plan outran available data. */
+  /** Retained for compatibility; full historical windows never wrap. */
   wrapped: boolean
-  /** Length of the unique year cycle before repeating. */
+  /** Number of real consecutive calendar years in the path. */
   cycleLength: number
 }
 
@@ -272,25 +272,34 @@ export function minHistoricalStartYear(_simulationYears = 1): number {
   return SP500_DATA_START
 }
 
-/** Latest selectable start year (can be the last data year; path wraps if needed). */
-export function maxHistoricalStartYear(_simulationYears = 1): number {
-  return SP500_DATA_END
+/** Latest start year with enough consecutive real data for the complete simulation. */
+export function maxHistoricalStartYear(simulationYears = 1): number {
+  const growthYears = Math.max(1, Math.floor(simulationYears))
+  return Math.max(SP500_DATA_START, SP500_DATA_END - growthYears + 1)
 }
 
-export function clampHistoricalStartYear(startYear: number, _simulationYears = 1): number {
-  return clamp(Math.round(startYear), SP500_DATA_START, SP500_DATA_END)
+export function clampHistoricalStartYear(startYear: number, simulationYears = 1): number {
+  return clamp(
+    Math.round(startYear),
+    minHistoricalStartYear(simulationYears),
+    maxHistoricalStartYear(simulationYears),
+  )
 }
 
-/** Preferred preset start, clamped into the downloaded series (no sliding). */
+/** Preferred preset start when its complete window exists in the downloaded series. */
 export function resolveWindowStart(
   preferredStartYear: number,
   _eventYear: number,
-  _years: number,
+  years: number,
   dataStart = SP500_DATA_START,
   dataEnd = SP500_DATA_END,
 ): number | null {
-  if (dataEnd < dataStart) return null
-  return clamp(preferredStartYear, dataStart, dataEnd)
+  const growthYears = Math.max(1, Math.floor(years))
+  const latestStart = dataEnd - growthYears + 1
+  if (latestStart < dataStart || preferredStartYear < dataStart || preferredStartYear > latestStart) {
+    return null
+  }
+  return Math.round(preferredStartYear)
 }
 
 export function getMarketPeriod(id: string | undefined | null): MarketPeriodDef | undefined {
@@ -300,8 +309,8 @@ export function getMarketPeriod(id: string | undefined | null): MarketPeriodDef 
 
 /**
  * Build a year-by-year path from `startYear`.
- * Walks forward through the downloaded series; when data runs out, wraps back to
- * the selection start year and continues for the full simulation length.
+ * Walks forward through real consecutive calendar years. The start is clamped so
+ * the complete simulation window ends within the downloaded data.
  */
 export function resolveReturnPath(
   startYear: number | undefined | null,
@@ -311,49 +320,37 @@ export function resolveReturnPath(
   const growthYears = Math.max(1, Math.floor(simulationYears))
   if (startYear == null || !Number.isFinite(startYear)) return null
 
-  const start = clampHistoricalStartYear(startYear)
-  const cycleEnd = SP500_DATA_END
-  if (start > cycleEnd) return null
-
-  const cycle: number[] = []
-  for (let year = start; year <= cycleEnd; year += 1) {
-    const value = SP500_ANNUAL_RETURNS[year]
-    if (value == null) return null
-    cycle.push(value)
-  }
-  if (cycle.length === 0) return null
+  const start = clampHistoricalStartYear(startYear, growthYears)
+  const end = start + growthYears - 1
 
   const returns: number[] = []
-  for (let i = 0; i < growthYears; i += 1) {
-    returns.push(cycle[i % cycle.length]!)
+  for (let year = start; year <= end; year += 1) {
+    const value = SP500_ANNUAL_RETURNS[year]
+    if (value == null) return null
+    returns.push(value)
   }
-  const wrapped = growthYears > cycle.length
 
   const matchingPeriod =
     (periodId ? getMarketPeriod(periodId) : undefined) ??
-    MARKET_PERIODS.find((period) => clampHistoricalStartYear(period.preferredStartYear) === start)
+    MARKET_PERIODS.find((period) => period.preferredStartYear === start)
 
   const periodMatches =
-    matchingPeriod != null && clampHistoricalStartYear(matchingPeriod.preferredStartYear) === start
-
-  const rangeLabel = wrapped
-    ? `${start}–${cycleEnd}, then repeats`
-    : `${start}–${start + growthYears - 1}`
+    matchingPeriod != null && matchingPeriod.preferredStartYear === start
 
   return {
     startYear: start,
-    endYear: cycleEnd,
+    endYear: end,
     returns,
     cagrPercent: cagr(returns),
     averagePercent: average(returns),
     worstYearPercent: Math.min(...returns),
     bestYearPercent: Math.max(...returns),
     periodId: periodMatches ? matchingPeriod.id : undefined,
-    label: periodMatches ? matchingPeriod.label : `Custom · ${rangeLabel}`,
+    label: periodMatches ? matchingPeriod.label : `Custom · ${start}–${end}`,
     blurb: periodMatches ? matchingPeriod.blurb : undefined,
     tone: periodMatches ? matchingPeriod.tone : undefined,
-    wrapped,
-    cycleLength: cycle.length,
+    wrapped: false,
+    cycleLength: returns.length,
   }
 }
 
@@ -399,10 +396,7 @@ export function alignHistoricalAccountStartYears<
 
 export function formatReturnPathSummary(resolved: ResolvedReturnPath, simulationYears?: number): string {
   const years = simulationYears ?? resolved.returns.length
-  const wrap = resolved.wrapped
-    ? ` · wraps every ${resolved.cycleLength}y from ${resolved.startYear}`
-    : ''
-  return `${resolved.label}: ${resolved.startYear}–${resolved.endYear}${wrap} · avg ${resolved.averagePercent.toFixed(1)}%/yr over ${years}y · CAGR ${resolved.cagrPercent.toFixed(1)}% · range ${resolved.worstYearPercent.toFixed(0)}% to ${resolved.bestYearPercent.toFixed(0)}%`
+  return `${resolved.label}: ${resolved.startYear}–${resolved.endYear} · avg ${resolved.averagePercent.toFixed(1)}%/yr over ${years}y · CAGR ${resolved.cagrPercent.toFixed(1)}% · range ${resolved.worstYearPercent.toFixed(0)}% to ${resolved.bestYearPercent.toFixed(0)}%`
 }
 
 /** Resolve path for an account using start year (preferred) or legacy period id. */
