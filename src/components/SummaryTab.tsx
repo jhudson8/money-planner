@@ -1,6 +1,6 @@
 import { calendarYearAtOffset, formatLongDate } from '../dates'
 import { formatPercent, usd, yearsPhrase } from '../format'
-import { getMarketPeriod } from '../marketHistory'
+import { getMarketPeriod, historicalSeriesLabel } from '../marketHistory'
 import { maskUsd, usePresentation } from '../presentation'
 import { describeStepAmount, describeStepGrowth } from '../planCopy'
 import {
@@ -43,6 +43,8 @@ export function SummaryTab({ plan, projection }: SummaryTabProps) {
   const rmdStart = rmdStartAge(plan.birthDate)
   const windowYears = replenishYears(plan)
   const windowLabel = yearsPhrase(windowYears)
+  const inflation = plan.inflationPercent ?? 2.5
+  const realEndNetWorth = projection.endNetWorth / Math.pow(1 + inflation / 100, years)
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,7 +60,7 @@ export function SummaryTab({ plan, projection }: SummaryTabProps) {
             , through {endYear}.
           </p>
           <p className="text-sm text-base-content/70">
-            Combined growth across accounts is{' '}
+            The return assumptions, weighted by today&apos;s account balances, equal{' '}
             {formatPercent(blendedReturnPercent(plan.accounts ?? [], yearsToProject(plan)), 2)} per year. Spending comes
             from the active short-term wallet. Everyday expenses are paid from this wallet. If cash runs
             out, eligible long-term accounts are sold first to replenish it, then 401(k) and IRA accounts.{' '}
@@ -109,7 +111,7 @@ export function SummaryTab({ plan, projection }: SummaryTabProps) {
                 <p className="text-sm text-base-content/80">
                   {maskUsd(account.amount, presentation, usd)}
                   {account.returnMode === 'historical'
-                    ? `, historical S&P from ${account.historicalStartYear ?? getMarketPeriod(account.historicalPeriodId)?.preferredStartYear ?? '?'}`
+                    ? `, ${historicalSeriesLabel(account.historicalReturnSeries)} from ${account.historicalStartYear ?? getMarketPeriod(account.historicalPeriodId)?.preferredStartYear ?? '?'}`
                     : `, growing at ${formatPercent(account.annualReturnPercent, 2)} per year`}
                   . Tax when sold{' '}
                   {account.kind === 'rothIra' ? '0%' : formatPercent(account.taxRatePercent, 0)}.
@@ -152,6 +154,8 @@ export function SummaryTab({ plan, projection }: SummaryTabProps) {
             After {years} years
             {endAge !== null ? ` (age ${endAge})` : ` (age ${plan.planUntilAge})`}, savings are{' '}
             <strong>{maskUsd(projection.endNetWorth, presentation, usd)}</strong>.
+            {' '}That is <strong>{maskUsd(realEndNetWorth, presentation, usd)}</strong> in today&apos;s
+            purchasing power at {formatPercent(inflation, 1)} annual inflation.
           </p>
           {projection.depletedInYear === null ? (
             <p className="text-sm text-base-content/70">
@@ -159,13 +163,25 @@ export function SummaryTab({ plan, projection }: SummaryTabProps) {
             </p>
           ) : (
             <p className="text-sm text-warning">
-              Savings reach $0
+              Required spending first cannot be paid in full
               {depletedPoint?.age != null
                 ? ` at age ${depletedPoint.age}`
                 : ` in year ${projection.depletedInYear}`}
               .
             </p>
           )}
+        </div>
+      </section>
+      <section className="card bg-base-100 shadow-sm border border-warning/30">
+        <div className="card-body gap-2 text-sm">
+          <h3 className="card-title text-lg">Model limitations</h3>
+          <ul className="list-disc space-y-1 pl-5 text-base-content/75">
+            <li>Sale tax is a fixed percentage of the entire gross sale, not a capital-gains or income-tax calculation.</li>
+            <li>RMDs use the simplified divisor 100 − age; this is a model rule, not the IRS Uniform Lifetime Table.</li>
+            <li>Flat returns are nominal and occur exactly every year inside this simulation.</li>
+            <li>Income stays fixed unless its schedule has an annual growth rate; the inflation setting above does not raise it.</li>
+            <li>The projection stops at age {plan.planUntilAge}; it says nothing about later years.</li>
+          </ul>
         </div>
       </section>
     </div>

@@ -169,7 +169,7 @@ export function runHistoricalSweep(
           replenishWaitMode: 'yoyGrowth',
           replenishGrowthPercent: growth,
           accounts: plan.accounts.map((item) =>
-            item.id === accountId
+            item.returnMode === 'historical'
               ? {
                   ...item,
                   returnMode: 'historical',

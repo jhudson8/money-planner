@@ -18,3 +18,7 @@ Plans and named scenarios save automatically in the browser. The JSON tab can ex
 Run the unit tests once with `npm test`, or use `npm run test:watch` during development.
 Tests use Vitest and live alongside the source in `src/*.test.ts`.
 Date tests use a fixed clock so results do not depend on when they run.
+
+## Historical return data
+
+See [RETURN_DATA.md](RETURN_DATA.md) for the exact legacy calculation, source segments, dividend treatment, and the documented series used for new historical projections.

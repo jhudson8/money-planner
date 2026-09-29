@@ -109,8 +109,8 @@ export function SweepTab({ plan, onChange }: SweepTabProps) {
           window, every replenish window in your range, and every growth-before-refill % in your
           range (wait-for-growth is turned on for the runs). Results rank{' '}
           <strong>policies</strong> — replenish + growth — by how they do across{' '}
-          <em>all</em> start years (survival rate, then median ending net worth), not by one lucky
-          calendar start.
+          <em>all</em> overlapping historical windows (funded-window count, then median ending net
+          worth). This count describes this finite historical sample; it is not a probability of future success.
         </p>
 
         <div className="flex flex-wrap items-end gap-3">
@@ -267,7 +267,7 @@ function ResultsTable({
             <th>#</th>
             <th>Replenish</th>
             <th>Growth %</th>
-            <th>Survival</th>
+            <th>Funded windows</th>
             <th>Median end</th>
             <th>Mean end</th>
             <th>Worst end</th>
@@ -281,11 +281,7 @@ function ResultsTable({
               <td>{yearsPhrase(setting.replenishYears)}</td>
               <td>{formatPercent(setting.growthPercent, 0)}</td>
               <td>
-                {formatPercent(setting.survivalRate * 100, 0)}
-                <span className="text-base-content/50 text-xs">
-                  {' '}
-                  ({setting.survivedCount}/{setting.startYearCount})
-                </span>
+                {setting.survivedCount}/{setting.startYearCount}
               </td>
               <td>{maskUsd(setting.medianEndNetWorth, presentation, usd)}</td>
               <td>{maskUsd(setting.meanEndNetWorth, presentation, usd)}</td>

@@ -63,7 +63,7 @@ export function createAccount(
         depletionOrder: 102,
       },
     }
-  return { id: createId(), kind, ...defaults[kind], ...partial }
+  return { id: createId(), kind, historicalReturnSeries: 'documented-us-equity-total-return', ...defaults[kind], ...partial }
 }
 
 export function createEmptyLongTerm(order: number): SavingsAccount {
@@ -82,6 +82,8 @@ export function createDefaultPlan(): Plan {
     keepWalletFull: false,
     replenishWaitMode: 'off',
     replenishGrowthPercent: 5,
+    recoveryBasis: 'marketIndex',
+    inflationPercent: 2.5,
     buyDipEnabled: false,
     buyDipTriggerPercent: 10,
     accounts: [

@@ -98,8 +98,10 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
         ? `Lasts through age ${projection.points.at(-1)?.age}`
         : `Lasts through year ${years}`
       : depletedPoint?.age != null
-        ? `Runs out at age ${depletedPoint.age}`
-        : `Runs out in year ${projection.depletedInYear}`
+        ? `First spending shortfall at age ${depletedPoint.age}`
+        : `First spending shortfall in year ${projection.depletedInYear}`
+  const inflation = plan.inflationPercent ?? 2.5
+  const purchasingPowerEnd = projection.endNetWorth / Math.pow(1 + inflation / 100, years)
 
   const stackedParts = useMemo(() => {
     const order = new Map(plan.accounts.map((account, index) => [account.id, index]))
@@ -223,12 +225,12 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
     <div className="flex flex-col gap-6">
       <section className="stats stats-vertical xl:stats-horizontal w-full bg-base-100 shadow-sm overflow-x-hidden">
         <div className="stat">
-          <div className="stat-title whitespace-normal">Combined growth</div>
+          <div className="stat-title whitespace-normal">Starting-balance weighted return</div>
           <div className="stat-value text-xl sm:text-2xl whitespace-normal">
             {formatPercent(projection.blendedReturnPercent, 2)}
           </div>
           <div className="stat-desc whitespace-normal">
-            Weighted by balances · {plan.keepWalletFull ? 'rolling ' : ''}
+            Return assumptions weighted by today&apos;s balances · {plan.keepWalletFull ? 'rolling ' : ''}
             {windowLabel} wallet
           </div>
         </div>
@@ -242,6 +244,7 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
               : usd.format(projection.endNetWorth)}
           </div>
           <div className="stat-desc whitespace-normal">
+            {!presentation ? `${usd.format(purchasingPowerEnd)} in today's dollars at ${inflation.toFixed(1)}% inflation · ` : ''}
             {projection.points.at(-1)?.age != null
               ? `Age ${projection.points.at(-1)?.age} · ${depletedLabel}`
               : depletedLabel}
@@ -252,7 +255,7 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
       {projection.depletedInYear !== null ? (
         <div className="alert alert-warning">
           <span>
-            Savings reach $0
+            Required spending first cannot be paid in full
             {depletedPoint?.age != null
               ? ` at age ${depletedPoint.age}`
               : ` in year ${projection.depletedInYear}`}
@@ -934,6 +937,7 @@ function YearTooltip({
             change: point.partChange?.[part.id],
             changeLabel: point.yearOffset === 0 ? 'opening refill' : 'since last year',
             growth: point.yearOffset > 0 ? (point.partGrowth?.[part.id] ?? 0) : undefined,
+            growthBase: point.yearOffset > 0 ? (point.partGrowthBase?.[part.id] ?? 0) : undefined,
             rmdSold: rmdSold > 0.005 ? rmdSold : undefined,
           }
         })}
@@ -1089,7 +1093,7 @@ function ItemList({
   yearTotal,
   yearLabel = 'this year',
 }: {
-  items: Array<NamedAmount & { changeLabel?: string; rmdSold?: number }>
+  items: Array<NamedAmount & { changeLabel?: string; rmdSold?: number; growthBase?: number }>
   empty?: string
   showMonthly?: boolean
   presentation?: boolean
@@ -1107,6 +1111,9 @@ function ItemList({
         const change = item.change ?? 0
         const showChange = item.change != null && Math.abs(change) > 0.005
         const showGrowth = item.growth != null && Math.abs(item.growth) > 0.005
+        const appliedReturn = item.growthBase != null && item.growthBase > 0.005
+          ? ((item.growth ?? 0) / item.growthBase) * 100
+          : null
         const detail = (
           presentation
             ? [
@@ -1115,12 +1122,12 @@ function ItemList({
                 showChange
                   ? `${signedPctOfToday(change, startNetWorth)} ${item.changeLabel ?? 'since last year'}`
                   : null,
-                showGrowth ? `${signedPctOfToday(item.growth ?? 0, startNetWorth)} return` : null,
+                showGrowth ? `${signedPctOfToday(item.growth ?? 0, startNetWorth)} return (${appliedReturn?.toFixed(2)}% on growth base)` : null,
               ]
             : [
                 item.rmdSold != null ? `−${usd.format(item.rmdSold)} RMD` : null,
                 showChange ? `${signedUsd(change)} ${item.changeLabel ?? 'since last year'}` : null,
-                showGrowth ? `${signedUsd(item.growth ?? 0)} return` : null,
+                showGrowth ? `${signedUsd(item.growth ?? 0)} return (${appliedReturn?.toFixed(2)}% × ${usd.format(item.growthBase ?? 0)})` : null,
               ]
         )
           .filter(Boolean)

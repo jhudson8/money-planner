@@ -1,5 +1,5 @@
 import { calendarYearAtOffset, formatLongDate, todayIsoDate } from './dates'
-import { resolveAccountReturnPath } from './marketHistory'
+import { historicalSeriesLabel, resolveAccountReturnPath } from './marketHistory'
 import { describeStep } from './planCopy'
 import { RMD_START_AGE } from './rmd'
 import {
@@ -98,7 +98,7 @@ function buildSp500ExternalVerification(plan: Plan, years: number): {
         wrapped: path.wrapped,
         cycleLength: path.cycleLength,
         sourceNote:
-          'App data: Shiller S&P calendar-year total return % (Dec–Dec price change + dividend yield).',
+          `App data: ${historicalSeriesLabel(account.historicalReturnSeries)}. See RETURN_DATA.md for method and sources.`,
         yearMap: sp500YearMap(path.startYear, path.returns, path.wrapped, path.cycleLength),
       }
     })
@@ -539,6 +539,7 @@ export function logVerificationPrompt(
       const end = point.parts[account.id] ?? 0
       const start = prior ? (prior.parts[account.id] ?? 0) : account.amount
       const growth$ = point.partGrowth[account.id] ?? 0
+      const growthBase = point.partGrowthBase[account.id] ?? start
       const change$ = point.partChange[account.id] ?? end - start
       const applied = appliedReturnPercent(account, point.yearOffset, years)
       return {
@@ -546,7 +547,8 @@ export function logVerificationPrompt(
         start: Math.round(start),
         end: Math.round(end),
         growth$: Math.round(growth$),
-        growthPct: start > 0.005 ? Number(((growth$ / start) * 100).toFixed(2)) : null,
+        growthBase: Math.round(growthBase),
+        growthPct: growthBase > 0.005 ? Number(((growth$ / growthBase) * 100).toFixed(2)) : null,
         change$: Math.round(change$),
         changePct: start > 0.005 ? Number(((change$ / start) * 100).toFixed(2)) : null,
         appliedReturnPct: applied == null ? null : Number(applied.toFixed(2)),

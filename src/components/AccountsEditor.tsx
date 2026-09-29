@@ -22,6 +22,8 @@ import {
   alignHistoricalAccountStartYears,
   clampHistoricalStartYear,
   formatReturnPathSummary,
+  DEFAULT_RETURN_SERIES,
+  historicalSeriesLabel,
   getMarketPeriod,
   listResolvableMarketPeriods,
   maxHistoricalStartYear,
@@ -117,11 +119,19 @@ export function AccountsEditor({ plan, projection, onChange }: AccountsEditorPro
       next.returnMode === 'historical' &&
       previous.historicalStartYear !== nextStart &&
       nextStart != null
+    const changedSeries =
+      previous?.returnMode === 'historical' &&
+      next.returnMode === 'historical' &&
+      previous.historicalReturnSeries !== next.historicalReturnSeries
     const updated = accounts.map((account) => (account.id === id ? next : account))
     commit(
       changedStartYear
         ? alignHistoricalAccountStartYears(updated, nextStart, simYears)
-        : updated,
+        : changedSeries
+          ? updated.map((account) => account.returnMode === 'historical'
+            ? { ...account, historicalReturnSeries: next.historicalReturnSeries }
+            : account)
+          : updated,
     )
     if (next.returnMode === 'historical') {
       setLastSpSliderAccountId(next.id)
@@ -692,7 +702,8 @@ function AccountDetailPane({
 }) {
   const isRoth = account.kind === 'rothIra'
   const returnMode = account.returnMode === 'historical' ? 'historical' : 'flat'
-  const periods = listResolvableMarketPeriods(simulationYears)
+  const series = account.historicalReturnSeries ?? 'legacy-shiller-december'
+  const periods = listResolvableMarketPeriods(simulationYears, series)
   const minStart = minHistoricalStartYear(simulationYears)
   const maxStart = maxHistoricalStartYear(simulationYears)
   const defaultPeriod = periods.find((p) => p.periodId === 'post-gfc-boom') ?? periods[0]
@@ -706,7 +717,7 @@ function AccountDetailPane({
   )
   const resolved =
     returnMode === 'historical'
-      ? resolveReturnPath(startYear, simulationYears, account.historicalPeriodId)
+      ? resolveReturnPath(startYear, simulationYears, account.historicalPeriodId, series)
       : null
   const selectedPeriodId = resolved?.periodId ?? ''
   const defaultPeriodId = defaultPeriod?.periodId ?? 'post-gfc-boom'
@@ -826,7 +837,7 @@ function AccountDetailPane({
           <div className="flex flex-col gap-1">
             <h4 className="font-bold text-sm text-base-content/90">Investment returns</h4>
             <p className="text-xs text-base-content/65 leading-relaxed">
-              Choose a constant rate or replay real S&P year-over-year returns for a historical
+              Choose a constant rate or replay a documented U.S. equity return series for a historical
               window sized to this plan ({simulationYears} growth years).
             </p>
           </div>
@@ -852,7 +863,8 @@ function AccountDetailPane({
               role="tab"
               className={`tab tab-sm ${returnMode === 'historical' ? 'tab-active font-semibold' : ''}`}
               onClick={() => {
-                const preset = resolveMarketPeriod(account.historicalPeriodId ?? defaultPeriodId, simulationYears)
+                const chosenSeries = account.historicalReturnSeries ?? DEFAULT_RETURN_SERIES
+                const preset = resolveMarketPeriod(account.historicalPeriodId ?? defaultPeriodId, simulationYears, chosenSeries)
                 const start = Math.min(
                   account.historicalStartYear ?? preset?.startYear ?? defaultStart,
                   maxStart,
@@ -862,10 +874,11 @@ function AccountDetailPane({
                   returnMode: 'historical',
                   historicalPeriodId: preset?.periodId ?? account.historicalPeriodId ?? defaultPeriodId,
                   historicalStartYear: start,
+                  historicalReturnSeries: chosenSeries,
                 })
               }}
             >
-              Historical S&P path
+              Historical market path
             </button>
           </div>
 
@@ -882,6 +895,23 @@ function AccountDetailPane({
           ) : (
             <div className="flex flex-col gap-3">
               <fieldset className="fieldset min-w-0">
+                <legend className="fieldset-legend text-xs font-semibold">Return data series</legend>
+                <select
+                  className="select select-bordered select-sm w-full text-xs"
+                  value={series}
+                  onChange={(event) => onChange({
+                    ...account,
+                    historicalReturnSeries: event.target.value as SavingsAccount['historicalReturnSeries'],
+                  })}
+                >
+                  <option value="documented-us-equity-total-return">Documented total return (new projections)</option>
+                  <option value="legacy-shiller-december">Legacy December approximation (reproduce saved plans)</option>
+                </select>
+                <p className="label whitespace-normal">
+                  {historicalSeriesLabel(series)}. Years before 1926 are reconstructed Cowles composite data; 1928 onward in the documented series is Damodaran&apos;s dividend-inclusive calendar-year series.
+                </p>
+              </fieldset>
+              <fieldset className="fieldset min-w-0">
                 <legend className="fieldset-legend text-xs font-semibold">
                   Jump to an interesting period
                 </legend>
@@ -891,7 +921,7 @@ function AccountDetailPane({
                   onChange={(event) => {
                     const id = event.target.value
                     if (!id) return
-                    const preset = resolveMarketPeriod(id, simulationYears)
+                    const preset = resolveMarketPeriod(id, simulationYears, series)
                     if (!preset) return
                     const nextStart = Math.min(preset.startYear, maxStart)
                     onChange({
@@ -963,7 +993,7 @@ function AccountDetailPane({
                         {formatPercent(resolved.averagePercent, 1)} / year
                       </span>
                       <span className="text-[11px] text-base-content/60">
-                        Simple average of the {simulationYears} yearly S&P returns from {startYear}–
+                        Simple average of the {simulationYears} yearly market returns from {startYear}–
                         {startYear + simulationYears - 1}
                       </span>
                     </div>
@@ -982,15 +1012,14 @@ function AccountDetailPane({
                     <p className="text-base-content/80 leading-relaxed">{resolved.blurb}</p>
                   ) : (
                     <p className="text-base-content/80 leading-relaxed">
-                      Custom window of real S&P year-over-year total returns from the downloaded
-                      Shiller series.
+                      Custom window from {historicalSeriesLabel(series)}.
                     </p>
                   )}
                   <p className="font-medium text-base-content/90">
                     {formatReturnPathSummary(resolved, simulationYears)}
                   </p>
                   <p className="text-base-content/60">
-                    Each simulation year applies that calendar year&apos;s S&P % in order, starting at{' '}
+                    Each simulation year applies that calendar year&apos;s selected-series return in order, starting at{' '}
                     {resolved.startYear} and ending at {resolved.endYear}. Only start years with
                     enough consecutive real market data for the full plan can be selected.
                   </p>

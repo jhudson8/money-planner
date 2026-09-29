@@ -376,6 +376,7 @@ export function coercePlan(value: unknown): Plan | null {
 
   const growthPercent = coerceFiniteNumber(plan.replenishGrowthPercent)
   const buyDipTriggerPercent = coerceFiniteNumber(plan.buyDipTriggerPercent)
+  const inflationPercent = coerceFiniteNumber(plan.inflationPercent)
   const waitModeRaw = plan.replenishWaitMode
   const replenishWaitMode =
     waitModeRaw === 'yoyGrowth' || waitModeRaw === 'recoverHigh' || waitModeRaw === 'off'
@@ -393,6 +394,9 @@ export function coercePlan(value: unknown): Plan | null {
     replenishWaitMode,
     replenishGrowthPercent:
       growthPercent != null ? Math.min(50, Math.max(0, growthPercent)) : 5,
+    recoveryBasis: plan.recoveryBasis === 'marketIndex' ? 'marketIndex' : 'accountBalance',
+    inflationPercent:
+      inflationPercent != null ? Math.min(20, Math.max(-5, inflationPercent)) : 2.5,
     buyDipEnabled: plan.buyDipEnabled === true,
     buyDipTriggerPercent:
       buyDipTriggerPercent != null

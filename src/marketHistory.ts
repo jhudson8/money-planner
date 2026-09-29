@@ -1,12 +1,34 @@
 import sp500Annual from './data/sp500-annual-returns.json'
+import documentedAnnual from './data/documented-us-equity-total-returns.json'
+import type { HistoricalReturnSeries } from './types'
 
 /**
- * S&P 500 calendar-year total returns (%), from downloaded Shiller monthly series
- * (Dec–Dec price change + dividend yield on prior Dec). Complete years only.
+ * Immutable legacy approximation. It uses December monthly-average price changes plus
+ * the prior December trailing annual dividend yield. This is not a standard calendar-year
+ * S&P 500 total-return calculation and does not reinvest dividends.
  */
 export const SP500_ANNUAL_RETURNS: Readonly<Record<number, number>> = Object.fromEntries(
   Object.entries(sp500Annual.returns).map(([year, pct]) => [Number(year), pct as number]),
 )
+
+export const DOCUMENTED_US_EQUITY_RETURNS: Readonly<Record<number, number>> = Object.fromEntries(
+  Object.entries(documentedAnnual.returns).map(([year, pct]) => [Number(year), pct as number]),
+)
+
+export const LEGACY_RETURN_SERIES: HistoricalReturnSeries = 'legacy-shiller-december'
+export const DEFAULT_RETURN_SERIES: HistoricalReturnSeries = 'documented-us-equity-total-return'
+
+export function historicalSeriesLabel(series: HistoricalReturnSeries | undefined): string {
+  return series === DEFAULT_RETURN_SERIES
+    ? 'Documented U.S. equity total return'
+    : 'Legacy Shiller December approximation'
+}
+
+export function historicalReturnsForSeries(
+  series: HistoricalReturnSeries | undefined,
+): Readonly<Record<number, number>> {
+  return series === DEFAULT_RETURN_SERIES ? DOCUMENTED_US_EQUITY_RETURNS : SP500_ANNUAL_RETURNS
+}
 
 export const SP500_DATA_START = sp500Annual.startYear
 export const SP500_DATA_END = sp500Annual.endYear
@@ -316,6 +338,7 @@ export function resolveReturnPath(
   startYear: number | undefined | null,
   simulationYears: number,
   periodId?: string | null,
+  series: HistoricalReturnSeries = LEGACY_RETURN_SERIES,
 ): ResolvedReturnPath | null {
   const growthYears = Math.max(1, Math.floor(simulationYears))
   if (startYear == null || !Number.isFinite(startYear)) return null
@@ -325,7 +348,7 @@ export function resolveReturnPath(
 
   const returns: number[] = []
   for (let year = start; year <= end; year += 1) {
-    const value = SP500_ANNUAL_RETURNS[year]
+    const value = historicalReturnsForSeries(series)[year]
     if (value == null) return null
     returns.push(value)
   }
@@ -357,16 +380,17 @@ export function resolveReturnPath(
 export function resolveMarketPeriod(
   periodId: string | undefined | null,
   simulationYears: number,
+  series: HistoricalReturnSeries = LEGACY_RETURN_SERIES,
 ): ResolvedReturnPath | null {
   const def = getMarketPeriod(periodId)
   if (!def) return null
   const start = resolveWindowStart(def.preferredStartYear, def.eventYear, simulationYears)
   if (start == null) return null
-  return resolveReturnPath(start, simulationYears, def.id)
+  return resolveReturnPath(start, simulationYears, def.id, series)
 }
 
-export function listResolvableMarketPeriods(simulationYears: number): ResolvedReturnPath[] {
-  return MARKET_PERIODS.map((period) => resolveMarketPeriod(period.id, simulationYears)).filter(
+export function listResolvableMarketPeriods(simulationYears: number, series: HistoricalReturnSeries = LEGACY_RETURN_SERIES): ResolvedReturnPath[] {
+  return MARKET_PERIODS.map((period) => resolveMarketPeriod(period.id, simulationYears, series)).filter(
     (period): period is ResolvedReturnPath => period != null,
   )
 }
@@ -405,12 +429,13 @@ export function resolveAccountReturnPath(
     returnMode?: 'flat' | 'historical'
     historicalStartYear?: number
     historicalPeriodId?: string
+    historicalReturnSeries?: HistoricalReturnSeries
   },
   simulationYears: number,
 ): ResolvedReturnPath | null {
   if (account.returnMode !== 'historical') return null
   if (account.historicalStartYear != null) {
-    return resolveReturnPath(account.historicalStartYear, simulationYears, account.historicalPeriodId)
+    return resolveReturnPath(account.historicalStartYear, simulationYears, account.historicalPeriodId, account.historicalReturnSeries)
   }
-  return resolveMarketPeriod(account.historicalPeriodId, simulationYears)
+  return resolveMarketPeriod(account.historicalPeriodId, simulationYears, account.historicalReturnSeries)
 }

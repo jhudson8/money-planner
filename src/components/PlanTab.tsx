@@ -18,7 +18,7 @@ import {
 } from '../simulation'
 import { formatPercent, usd, yearsPhrase } from '../format'
 import { maskUsd, usePresentation } from '../presentation'
-import type { CashFlowSource, Plan, Projection, ReplenishWaitMode } from '../types'
+import type { CashFlowSource, Plan, Projection, RecoveryBasis, ReplenishWaitMode } from '../types'
 
 type PlanTabProps = {
   plan: Plan
@@ -133,7 +133,7 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
                     <p className="label whitespace-normal">Sum of the accounts below</p>
                   </fieldset>
                   <fieldset className="fieldset min-w-0">
-                    <legend className="fieldset-legend">Combined growth</legend>
+                    <legend className="fieldset-legend">Starting-balance weighted return</legend>
                     <div className="input w-full min-w-0">
                       <span className="grow font-semibold tabular-nums">
                         {presentation ? '•••' : formatPercent(blendedReturnPercent(plan.accounts ?? [], yearsToProject(plan)), 2)}
@@ -178,6 +178,17 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
                     onChange={(planUntilAge) => patch({ planUntilAge })}
                   />
                 </div>
+                <NumberField
+                  label="Inflation for purchasing-power display"
+                  masked={presentation}
+                  value={plan.inflationPercent ?? 2.5}
+                  min={-5}
+                  max={20}
+                  step={0.1}
+                  suffix="% / year"
+                  hint="Converts the ending nominal balance to today's purchasing power; it does not change cash flows or returns."
+                  onChange={(inflationPercent) => patch({ inflationPercent })}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <NumberField
                     label="Replenish window"
@@ -263,11 +274,20 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
                       }
                     />
                   ) : replenishWaitMode(plan) === 'recoverHigh' ? (
-                    <div className="rounded-box border border-base-200 bg-base-200/40 p-3 text-xs text-base-content/65 self-end">
-                      Tracks the primary long-term peak after each year&apos;s growth. Optional
-                      refills stay paused through a drawdown until the balance reaches that peak
-                      again. Required refills (empty wallet) still run.
-                    </div>
+                    <fieldset className="fieldset min-w-0">
+                      <legend className="fieldset-legend">Recovery means</legend>
+                      <select
+                        className="select select-bordered w-full"
+                        value={plan.recoveryBasis ?? 'accountBalance'}
+                        onChange={(event) => patch({ recoveryBasis: event.target.value as RecoveryBasis })}
+                      >
+                        <option value="marketIndex">Underlying return path regains peak</option>
+                        <option value="accountBalance">Account dollar balance regains peak (legacy)</option>
+                      </select>
+                      <p className="label whitespace-normal">
+                        Market index ignores deposits and withdrawals. The legacy balance rule can stay below its peak after withdrawals. Required refills still run.
+                      </p>
+                    </fieldset>
                   ) : (
                     <div className="rounded-box border border-base-200 bg-base-200/40 p-3 text-xs text-base-content/65 self-end">
                       Choose a wait mode to pause scheduled wallet refills after weak high-risk

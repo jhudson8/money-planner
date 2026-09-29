@@ -1,0 +1,245 @@
+{
+  "version": 16,
+  "birthDate": "1975-07-21",
+  "planUntilAge": 100,
+  "replenishYears": 4,
+  "keepWalletFull": true,
+  "replenishWaitMode": "recoverHigh",
+  "replenishGrowthPercent": 8,
+  "accounts": [
+    {
+      "id": "6e718e44-39d4-4f81-8897-8223569977c6",
+      "kind": "shortTerm",
+      "name": "Lower risk",
+      "amount": 0,
+      "annualReturnPercent": 2,
+      "taxRatePercent": 0,
+      "depletionOrder": 0,
+      "returnMode": "flat"
+    },
+    {
+      "id": "b4bd6b0d-3d33-47da-b794-62818b492226",
+      "kind": "longTerm",
+      "name": "trading account",
+      "amount": 3641000,
+      "annualReturnPercent": 10,
+      "taxRatePercent": 20,
+      "depletionOrder": 1,
+      "returnMode": "historical",
+      "historicalStartYear": 1988
+    },
+    {
+      "id": "7e719c46-13d9-41e0-8cad-330adc34bd08",
+      "kind": "traditional401k",
+      "name": "401(k)",
+      "amount": 0,
+      "annualReturnPercent": 8,
+      "taxRatePercent": 22,
+      "depletionOrder": 7,
+      "returnMode": "historical",
+      "historicalPeriodId": "great-depression-crash",
+      "historicalStartYear": 1929
+    },
+    {
+      "id": "68d10e12-4ee1-4394-97e2-7b13c0348e0a",
+      "kind": "rothIra",
+      "name": "Roth IRA",
+      "amount": 47000,
+      "annualReturnPercent": 8,
+      "taxRatePercent": 0,
+      "depletionOrder": 10,
+      "returnMode": "flat"
+    },
+    {
+      "id": "c85a57a1-5406-4771-b641-5ec862f73853",
+      "kind": "traditionalIra",
+      "name": "Traditional IRA",
+      "amount": 0,
+      "annualReturnPercent": 8,
+      "taxRatePercent": 22,
+      "depletionOrder": 8,
+      "returnMode": "flat"
+    },
+    {
+      "id": "13499b63-37e2-41fb-b4b4-8edbeed4e198",
+      "kind": "sepIra",
+      "name": "SEP IRA",
+      "amount": 157000,
+      "annualReturnPercent": 8,
+      "taxRatePercent": 22,
+      "depletionOrder": 9,
+      "returnMode": "historical",
+      "historicalPeriodId": "great-depression-crash",
+      "historicalStartYear": 1929
+    }
+  ],
+  "incomeSources": [
+    {
+      "id": "ee34281d-e752-4ef8-8517-5b30458220d2",
+      "name": "Rental",
+      "disabled": false,
+      "steps": [
+        {
+          "id": "b5866d28-42e2-4679-b16a-5002cb052649",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "now"
+          },
+          "valueType": "absolute",
+          "value": 1800,
+          "annualGrowthPercent": 0,
+          "once": false
+        }
+      ]
+    },
+    {
+      "id": "a61b6c43-873b-439b-bae8-3c532bbeb78c",
+      "name": "Social Security",
+      "disabled": false,
+      "steps": [
+        {
+          "id": "b710d0b1-3cd6-468b-ab74-be21a47d93af",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "date",
+            "date": "2040-08-01"
+          },
+          "valueType": "absolute",
+          "value": 2800,
+          "annualGrowthPercent": 0,
+          "once": false
+        }
+      ]
+    }
+  ],
+  "expenseSources": [
+    {
+      "id": "92a5c30d-7d85-4306-bf5e-2481f922e1b9",
+      "name": "Living expenses",
+      "disabled": false,
+      "steps": [
+        {
+          "id": "0fa30f2e-5fcf-4c6d-91c4-7c530c423d02",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "now"
+          },
+          "valueType": "absolute",
+          "value": 6000,
+          "annualGrowthPercent": 2,
+          "once": false
+        }
+      ]
+    },
+    {
+      "id": "a82d3785-048c-4c39-bd76-b5cc2323c428",
+      "name": "Health insurance",
+      "disabled": false,
+      "steps": [
+        {
+          "id": "b100bcf7-c48d-48eb-ab2f-fadea96f0218",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "date",
+            "date": "2027-08-01"
+          },
+          "valueType": "absolute",
+          "value": 3000,
+          "annualGrowthPercent": 0,
+          "once": false
+        },
+        {
+          "id": "921a03b7-5d7d-457f-a058-cb95fa619fae",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "date",
+            "date": "2040-07-21"
+          },
+          "valueType": "absolute",
+          "value": 700,
+          "annualGrowthPercent": 2,
+          "once": false
+        }
+      ]
+    },
+    {
+      "id": "6394bd7c-8beb-49aa-88c4-6443d752007c",
+      "name": "Alimony",
+      "disabled": false,
+      "steps": [
+        {
+          "id": "11199e36-3eef-4e78-80b3-63f731e7e6a4",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "now"
+          },
+          "valueType": "absolute",
+          "value": 7000,
+          "annualGrowthPercent": 0,
+          "once": false
+        },
+        {
+          "id": "f339b36e-a7fa-427e-a2ad-11c5bb7ee59b",
+          "amountPeriod": "monthly",
+          "start": {
+            "type": "date",
+            "date": "2029-09-01"
+          },
+          "valueType": "absolute",
+          "value": 6000,
+          "annualGrowthPercent": 0,
+          "once": false
+        },
+        {
+          "id": "272bee3b-1aad-425d-9268-f82a6bb77ec5",
+          "amountPeriod": "annual",
+          "start": {
+            "type": "date",
+            "date": "2035-09-01"
+          },
+          "valueType": "absolute",
+          "value": 0,
+          "annualGrowthPercent": 0,
+          "once": false
+        }
+      ]
+    },
+    {
+      "id": "69b51400-56ba-46fd-bd93-6072ae5f3c96",
+      "name": "fun budget",
+      "disabled": true,
+      "steps": [
+        {
+          "id": "09b547c7-4484-4ab9-bf4b-bb1bd4cdedb3",
+          "amountPeriod": "annual",
+          "once": false,
+          "start": {
+            "type": "now"
+          },
+          "valueType": "absolute",
+          "value": 5000,
+          "annualGrowthPercent": 2
+        }
+      ]
+    },
+    {
+      "id": "a9518571-e8d5-4aba-ac7f-1bc03be41e45",
+      "name": "vacation house",
+      "disabled": true,
+      "steps": [
+        {
+          "id": "c6c00015-ae91-4be7-9763-8c1ee4e686f7",
+          "amountPeriod": "annual",
+          "once": true,
+          "start": {
+            "type": "date",
+            "date": "2045-01-01"
+          },
+          "valueType": "absolute",
+          "value": 1000000,
+          "annualGrowthPercent": 0
+        }
+      ]
+    }
+  ]
+}

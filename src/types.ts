@@ -16,6 +16,8 @@ export type AccountKind =
 
 /** Optional wallet refill gate (required empty-wallet sells always run). */
 export type ReplenishWaitMode = 'off' | 'yoyGrowth' | 'recoverHigh'
+export type RecoveryBasis = 'accountBalance' | 'marketIndex'
+export type HistoricalReturnSeries = 'legacy-shiller-december' | 'documented-us-equity-total-return'
 
 export interface ScheduleStep {
   id: string
@@ -72,6 +74,8 @@ export interface SavingsAccount {
   historicalPeriodId?: string
   /** First calendar year of the S&P path when returnMode is 'historical'. */
   historicalStartYear?: number
+  /** Data definition used for historical returns. Missing means legacy for saved-plan compatibility. */
+  historicalReturnSeries?: HistoricalReturnSeries
   /**
    * Tax rate applied when this account is sold to refill the short-term wallet.
    * Roth IRA is always treated as 0.
@@ -111,6 +115,10 @@ export interface Plan {
    * Used when replenishWaitMode is 'yoyGrowth'. Default 5.
    */
   replenishGrowthPercent: number
+  /** Missing means accountBalance, preserving version-16 saved-plan behavior. */
+  recoveryBasis?: RecoveryBasis
+  /** Display-only annual inflation assumption for purchasing-power values. */
+  inflationPercent?: number
   /** Buy after a large down year by moving wallet cash above one year of need to primary long-term. */
   buyDipEnabled?: boolean
   /** Primary long-term annual loss that activates the buy-the-dip strategy. */
@@ -158,8 +166,12 @@ export interface YearProjection {
   parts: Record<string, number>
   /** Investment gain or loss for each account this year, keyed by id. */
   partGrowth: Record<string, number>
+  /** Balance on which this year's investment return was applied, after RMDs. */
+  partGrowthBase: Record<string, number>
   /** Ending balance minus last year's ending balance, keyed by id. */
   partChange: Record<string, number>
+  /** Required spending minus income that could not be paid this year. */
+  spendingShortfall: number
   incomeItems: NamedAmount[]
   expenseItems: NamedAmount[]
 }

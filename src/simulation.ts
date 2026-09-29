@@ -10,6 +10,7 @@ import type {
   Plan,
   Projection,
   ReplenishWaitMode,
+  RecoveryBasis,
   SavingsAccount,
   ScheduleStep,
   Timing,
@@ -37,6 +38,11 @@ export function replenishWaitMode(
   const mode = plan.replenishWaitMode
   if (mode === 'off' || mode === 'yoyGrowth' || mode === 'recoverHigh') return mode
   return plan.replenishOnHighRiskGrowth === true ? 'yoyGrowth' : 'off'
+}
+
+/** Missing preserves the account-balance behavior of existing version-16 plans. */
+export function recoveryBasis(plan: Pick<Plan, 'recoveryBasis'>): RecoveryBasis {
+  return plan.recoveryBasis === 'marketIndex' ? 'marketIndex' : 'accountBalance'
 }
 
 /** @deprecated Prefer replenishWaitMode — true when mode is yoyGrowth. */
@@ -399,11 +405,13 @@ function topUpWalletWindow(
   afterYear: number,
   previousBalances: Record<string, number>,
   highWaterMark: number,
+  marketIndex: number,
+  marketPeak: number,
 ): { tax: number; net: number; moves: AccountMove[] } {
   if (!keepWalletFull(plan)) return emptyTransfer()
   const nextYear = afterYear + 1
   if (nextYear > yearsToProject(plan)) return emptyTransfer()
-  if (!mayOptionallyReplenish(plan, accounts, previousBalances, highWaterMark)) {
+  if (!mayOptionallyReplenish(plan, accounts, previousBalances, highWaterMark, marketIndex, marketPeak)) {
     return emptyTransfer()
   }
   return refillWallet(plan, accounts, nextYear)
@@ -466,11 +474,14 @@ function mayOptionallyReplenish(
   accounts: AccountState[],
   previousBalances: Record<string, number>,
   highWaterMark: number,
+  marketIndex: number,
+  marketPeak: number,
 ): boolean {
   const mode = replenishWaitMode(plan)
   if (mode === 'off') return true
   const high = primarySource(accounts)
   if (mode === 'recoverHigh') {
+    if (recoveryBasis(plan) === 'marketIndex') return marketIndex + 1e-12 >= marketPeak
     return high.amount + 0.005 >= highWaterMark
   }
   const prev = previousBalances[high.id]
@@ -701,7 +712,7 @@ export function simulate(plan: Plan): Projection {
   const accounts = startingAccounts(plan)
   const points: YearProjection[] = []
   const startAge = rmdStartAge(plan.birthDate)
-  let depletedInYear: number | null = totalOf(accounts) <= 0 ? 0 : null
+  let depletedInYear: number | null = null
   let highWaterMark = primarySource(accounts).amount
   let primaryMarketIndex = 1
   let primaryMarketPeak = 1
@@ -719,7 +730,8 @@ export function simulate(plan: Plan): Projection {
   for (const account of accounts) {
     account.amount = Math.max(0, account.amount)
   }
-  if (totalOf(accounts) <= 0 && depletedInYear === null) {
+  const openingShortfall = Math.max(0, Math.max(0, startFlows.expenses - startFlows.income) - opened.paid)
+  if (openingShortfall > 0.005 && depletedInYear === null) {
     depletedInYear = 0
   }
   highWaterMark = Math.max(highWaterMark, primarySource(accounts).amount)
@@ -741,7 +753,9 @@ export function simulate(plan: Plan): Projection {
           ...opened.accountMoves,
         ],
         partGrowth: zeroByPart,
+        partGrowthBase: beforeOpen,
         partChange: snapshotChange(beforeOpen, snapshotParts(accounts)),
+        spendingShortfall: openingShortfall,
       },
       plan,
     ),
@@ -786,7 +800,7 @@ export function simulate(plan: Plan): Projection {
     if (
       !keepWalletFull(plan) &&
       yearOffset % replenishYears(plan) === 0 &&
-      mayOptionallyReplenish(plan, accounts, previous, highWaterMark)
+      mayOptionallyReplenish(plan, accounts, previous, highWaterMark, primaryMarketIndex, primaryMarketPeak)
     ) {
       const refilled = refillWallet(plan, accounts, yearOffset)
       taxesPaid += refilled.tax
@@ -802,7 +816,7 @@ export function simulate(plan: Plan): Projection {
 
     const topped = dipActive
       ? manageDipWallet(plan, accounts, yearOffset + 1)
-      : topUpWalletWindow(plan, accounts, yearOffset, previous, highWaterMark)
+      : topUpWalletWindow(plan, accounts, yearOffset, previous, highWaterMark, primaryMarketIndex, primaryMarketPeak)
     taxesPaid += topped.tax
     walletRefill += topped.net
     accountMoves.push(...topped.moves)
@@ -813,7 +827,8 @@ export function simulate(plan: Plan): Projection {
       account.amount = Math.max(0, account.amount)
     }
 
-    if (totalOf(accounts) <= 0 && depletedInYear === null) {
+    const spendingShortfall = Math.max(0, Math.max(0, flows.expenses - flows.income) - spent.paid)
+    if (spendingShortfall > 0.005 && depletedInYear === null) {
       depletedInYear = yearOffset
     }
 
@@ -830,7 +845,9 @@ export function simulate(plan: Plan): Projection {
           walletRefill,
           accountMoves,
           partGrowth,
+          partGrowthBase: growthBases,
           partChange: snapshotChange(previous, snapshotParts(accounts)),
+          spendingShortfall,
         },
         plan,
       ),
