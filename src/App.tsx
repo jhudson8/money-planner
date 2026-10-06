@@ -177,7 +177,12 @@ function AppInner() {
           )
           return withActivePlan(current, {
             ...active.plan,
-            accounts: alignHistoricalAccountStartYears(accounts, nextStart, simYears),
+            accounts: alignHistoricalAccountStartYears(
+              accounts,
+              nextStart,
+              simYears,
+              account.historicalReturnSeries,
+            ),
           })
         })
         return
@@ -349,7 +354,7 @@ function AppInner() {
         ) : null}
         {tab === 'timeline' ? <TimelineTab plan={plan} projection={projection} /> : null}
         {tab === 'summary' ? <SummaryTab plan={plan} projection={projection} /> : null}
-        {tab === 'chart' ? <ChartTab plan={plan} projection={projection} /> : null}
+        {tab === 'chart' ? <ChartTab plan={plan} projection={projection} onChange={setPlan} /> : null}
         {tab === 'sweep' ? <SweepTab plan={plan} onChange={setPlan} /> : null}
         {tab === 'challenge' ? (
           <ChallengeTab plan={plan} projection={projection} scenarioName={scenario.name} />

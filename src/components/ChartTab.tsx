@@ -18,12 +18,21 @@ import {
 import { compactUsd, formatPercent, signedUsd, signedUsdWithMonthly, usd, usdWithMonthly, usdYearAndMonth, yearsPhrase } from '../format'
 import { maskCompactUsd, maskUsd, pctOfToday, pctVsStart, shareOf, signedPctOfToday, usePresentation } from '../presentation'
 import { rmdStartAge } from '../rmd'
+import {
+  alignHistoricalAccountStartYears,
+  clampHistoricalStartYear,
+  historicalSeriesLabel,
+  maxHistoricalStartYear,
+  minHistoricalStartYear,
+  resolveAccountReturnPath,
+} from '../marketHistory'
 import { accountHasRmd, ageAtPlanYear, isRetirementAccount, replenishYears, yearsToProject } from '../simulation'
 import type { AccountKind, AccountMove, NamedAmount, Plan, Projection, YearProjection } from '../types'
 
 type ChartTabProps = {
   plan: Plan
   projection: Projection
+  onChange: (plan: Plan) => void
 }
 
 type ChartMenu = {
@@ -73,7 +82,7 @@ function yearHasVisibleMoves(point: YearProjection, layers: ChartLayers): boolea
   return (layers.replenish && isReplenish(point)) || (layers.rmd && isRmdYear(point))
 }
 
-export function ChartTab({ plan, projection }: ChartTabProps) {
+export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
   const presentation = usePresentation()
   const [layers, setLayers] = useState<ChartLayers>({
     rmd: true,
@@ -102,6 +111,56 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
         : `First spending shortfall in year ${projection.depletedInYear}`
   const inflation = plan.inflationPercent ?? 2.5
   const purchasingPowerEnd = projection.endNetWorth / Math.pow(1 + inflation / 100, years)
+  const historicalAccount = plan.accounts.find((account) => account.returnMode === 'historical')
+  const marketPath = historicalAccount
+    ? resolveAccountReturnPath(historicalAccount, years)
+    : null
+  const historicalStartMin = minHistoricalStartYear(years)
+  const historicalStartMax = maxHistoricalStartYear(years)
+  const historicalStart = marketPath?.startYear ?? historicalStartMin
+
+  function setHistoricalStartYear(value: number) {
+    if (!historicalAccount) return
+    const startYear = clampHistoricalStartYear(value, years)
+    onChange({
+      ...plan,
+      accounts: alignHistoricalAccountStartYears(
+        plan.accounts,
+        startYear,
+        years,
+        historicalAccount.historicalReturnSeries,
+      ),
+    })
+  }
+  const marketChartData = useMemo(() => {
+    if (!marketPath) return []
+    let index = 100
+    const data: Array<{
+      calendarYear: number
+      annualReturn: number | null
+      relativeChange: number
+      age: number | null
+      simulationYear: number
+    }> = [{
+      calendarYear: marketPath.startYear - 1,
+      annualReturn: null,
+      relativeChange: 0,
+      age: projection.points[0]?.age ?? null,
+      simulationYear: 0,
+    }]
+    marketPath.returns.forEach((annualReturn, pathIndex) => {
+      index *= 1 + annualReturn / 100
+      const point = projection.points[pathIndex + 1]
+      data.push({
+        calendarYear: marketPath.startYear + pathIndex,
+        annualReturn,
+        relativeChange: index - 100,
+        age: point?.age ?? null,
+        simulationYear: pathIndex + 1,
+      })
+    })
+    return data
+  }, [marketPath, projection.points])
 
   const stackedParts = useMemo(() => {
     const order = new Map(plan.accounts.map((account, index) => [account.id, index]))
@@ -264,8 +323,37 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
         </div>
       ) : null}
 
+      {historicalAccount && marketPath ? (
+        <section className="rounded-box border border-base-300 bg-base-100 px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <label htmlFor="net-worth-historical-start" className="text-sm font-semibold">
+              Historical market start year: {historicalStart}
+            </label>
+            <span className="text-xs text-base-content/60">
+              Path {historicalStart}–{marketPath.endYear} · applies to all{' '}
+              {plan.accounts.filter((account) => account.returnMode === 'historical').length} historical accounts
+            </span>
+          </div>
+          <input
+            id="net-worth-historical-start"
+            type="range"
+            className="range range-primary range-sm mt-2 w-full"
+            min={historicalStartMin}
+            max={historicalStartMax}
+            step={1}
+            value={historicalStart}
+            onChange={(event) => setHistoricalStartYear(Number(event.target.value))}
+          />
+          <div className="mt-1 flex justify-between text-[11px] tabular-nums text-base-content/55">
+            <span>{historicalStartMin}</span>
+            <span>{historicalStartMax}</span>
+          </div>
+        </section>
+      ) : null}
+
       <section className="card min-w-0 bg-base-100 shadow-sm">
         <div className="card-body min-w-0">
+          <h2 className="card-title">Net worth projection</h2>
           <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             <LayerToggle
               label="RMD"
@@ -291,7 +379,7 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
           <p className="text-xs text-base-content/60">{showAge ? 'Age' : 'Years from now'}</p>
           <div
             ref={chartWrapRef}
-            className="h-72 w-full min-w-0 sm:h-96"
+            className="h-72 w-full min-w-0 sm:h-80"
             onMouseMove={(event) => {
               pointer.current = { x: event.clientX, y: event.clientY }
             }}
@@ -483,6 +571,58 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
             </ResponsiveContainer>
           </div>
 
+          {marketPath && historicalAccount ? (
+            <>
+              <div className="h-72 w-full min-w-0 sm:h-80">
+                <ResponsiveContainer>
+                  <ComposedChart data={marketChartData} margin={{ top: 8, right: 8, left: 0, bottom: 18 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                    <XAxis dataKey="calendarYear" tickLine={false} minTickGap={24} />
+                    <YAxis
+                      yAxisId="change"
+                      tickFormatter={(value: number) => `${value.toFixed(0)}%`}
+                      width={56}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      yAxisId="annual"
+                      orientation="right"
+                      tickFormatter={(value: number) => `${value.toFixed(0)}%`}
+                      width={48}
+                      tickLine={false}
+                    />
+                    <Tooltip content={<MarketReturnTooltip />} />
+                    <Legend />
+                    <ReferenceLine yAxisId="change" y={0} stroke="var(--color-base-content)" opacity={0.45} />
+                    <Bar
+                      yAxisId="annual"
+                      dataKey="annualReturn"
+                      name="Annual return"
+                      fill="var(--color-info)"
+                      fillOpacity={0.22}
+                      stroke="var(--color-info)"
+                      strokeOpacity={0.35}
+                      maxBarSize={28}
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      yAxisId="change"
+                      type="linear"
+                      dataKey="relativeChange"
+                      name="Relative change"
+                      stroke="var(--color-primary)"
+                      strokeWidth={3}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-base-content/60">
+                Historical market path · {historicalSeriesLabel(historicalAccount.historicalReturnSeries)} · {marketPath.startYear}–{marketPath.endYear} · translucent bars show annual returns; the line shows compounded relative change from 0%.
+              </p>
+            </>
+          ) : null}
           {todayPoint && todayDrop > 0.5 ? (
             <div className="alert mt-2">
               <span>
@@ -584,6 +724,7 @@ export function ChartTab({ plan, projection }: ChartTabProps) {
           )}
         </div>
       </section>
+
 
       {menu ? (
         <ReplenishMenu
@@ -802,6 +943,32 @@ function ReplenishMenu({
       </div>
     </div>,
     document.body,
+  )
+}
+
+function MarketReturnTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: ReadonlyArray<{ payload?: { calendarYear: number; annualReturn: number | null; relativeChange: number; age: number | null; simulationYear: number } }>
+}) {
+  const point = payload?.[0]?.payload
+  if (!active || !point) return null
+  return (
+    <div className="rounded-box border border-base-300 bg-base-100 px-3 py-2 text-xs shadow-lg">
+      <p className="font-semibold">
+        {point.calendarYear}{point.age != null ? ` · age ${point.age}` : ` · simulation year ${point.simulationYear}`}
+      </p>
+      {point.annualReturn != null ? (
+        <p className={point.annualReturn < 0 ? 'text-error' : 'text-success'}>
+          Annual return {formatPercent(point.annualReturn, 2)}
+        </p>
+      ) : null}
+      <p className="text-base-content/70">
+        Relative change {formatPercent(point.relativeChange, 2)}
+      </p>
+    </div>
   )
 }
 

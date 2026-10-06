@@ -1,6 +1,7 @@
 import { createId } from './ids'
 import { ageAtYearOffset, parseIsoDate, toIsoDate } from './dates'
 import { createAccount, createDefaultPlan } from './defaultPlan'
+import { synchronizeHistoricalAccounts } from './marketHistory'
 import {
   DEFAULT_REPLENISH_YEARS,
   MAX_REPLENISH_YEARS,
@@ -402,7 +403,7 @@ export function coercePlan(value: unknown): Plan | null {
       buyDipTriggerPercent != null
         ? Math.min(50, Math.max(0, buyDipTriggerPercent))
         : 10,
-    accounts,
+    accounts: synchronizeHistoricalAccounts(accounts, years),
     incomeSources: migrateSources(incomeSources, currentAge),
     expenseSources: migrateSources(expenseSources, currentAge),
   }

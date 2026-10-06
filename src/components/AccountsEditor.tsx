@@ -125,12 +125,15 @@ export function AccountsEditor({ plan, projection, onChange }: AccountsEditorPro
       previous.historicalReturnSeries !== next.historicalReturnSeries
     const updated = accounts.map((account) => (account.id === id ? next : account))
     commit(
-      changedStartYear
-        ? alignHistoricalAccountStartYears(updated, nextStart, simYears)
-        : changedSeries
-          ? updated.map((account) => account.returnMode === 'historical'
-            ? { ...account, historicalReturnSeries: next.historicalReturnSeries }
-            : account)
+      next.returnMode === 'historical' &&
+      (changedStartYear || changedSeries || previous?.returnMode !== 'historical') &&
+      nextStart != null
+        ? alignHistoricalAccountStartYears(
+            updated,
+            nextStart,
+            simYears,
+            next.historicalReturnSeries,
+          )
           : updated,
     )
     if (next.returnMode === 'historical') {
@@ -863,16 +866,22 @@ function AccountDetailPane({
               role="tab"
               className={`tab tab-sm ${returnMode === 'historical' ? 'tab-active font-semibold' : ''}`}
               onClick={() => {
-                const chosenSeries = account.historicalReturnSeries ?? DEFAULT_RETURN_SERIES
-                const preset = resolveMarketPeriod(account.historicalPeriodId ?? defaultPeriodId, simulationYears, chosenSeries)
+                const sharedPath = allAccounts.find(
+                  (item) => item.id !== account.id && item.returnMode === 'historical',
+                )
+                const chosenSeries = sharedPath?.historicalReturnSeries ??
+                  account.historicalReturnSeries ?? DEFAULT_RETURN_SERIES
+                const chosenPeriodId = sharedPath?.historicalPeriodId ??
+                  account.historicalPeriodId ?? defaultPeriodId
+                const preset = resolveMarketPeriod(chosenPeriodId, simulationYears, chosenSeries)
                 const start = Math.min(
-                  account.historicalStartYear ?? preset?.startYear ?? defaultStart,
+                  sharedPath?.historicalStartYear ?? account.historicalStartYear ?? preset?.startYear ?? defaultStart,
                   maxStart,
                 )
                 onChange({
                   ...account,
                   returnMode: 'historical',
-                  historicalPeriodId: preset?.periodId ?? account.historicalPeriodId ?? defaultPeriodId,
+                  historicalPeriodId: sharedPath?.historicalPeriodId ?? preset?.periodId,
                   historicalStartYear: start,
                   historicalReturnSeries: chosenSeries,
                 })

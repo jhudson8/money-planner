@@ -401,10 +401,18 @@ export function alignHistoricalAccountStartYears<
     returnMode?: 'flat' | 'historical'
     historicalStartYear?: number
     historicalPeriodId?: string
+    historicalReturnSeries?: HistoricalReturnSeries
   },
->(accounts: T[], startYear: number, simulationYears: number): T[] {
+>(
+  accounts: T[],
+  startYear: number,
+  simulationYears: number,
+  series?: HistoricalReturnSeries,
+): T[] {
   const nextStart = clampHistoricalStartYear(startYear, simulationYears)
-  const matching = listResolvableMarketPeriods(simulationYears).find(
+  const nextSeries = series ?? accounts.find((account) => account.returnMode === 'historical')
+    ?.historicalReturnSeries ?? LEGACY_RETURN_SERIES
+  const matching = listResolvableMarketPeriods(simulationYears, nextSeries).find(
     (period) => period.startYear === nextStart,
   )
   return accounts.map((account) =>
@@ -413,8 +421,31 @@ export function alignHistoricalAccountStartYears<
           ...account,
           historicalStartYear: nextStart,
           historicalPeriodId: matching?.periodId,
+          historicalReturnSeries: nextSeries,
         }
       : account,
+  )
+}
+
+/** Normalize every historical account to one calendar path and one data series. */
+export function synchronizeHistoricalAccounts<
+  T extends {
+    returnMode?: 'flat' | 'historical'
+    historicalStartYear?: number
+    historicalPeriodId?: string
+    historicalReturnSeries?: HistoricalReturnSeries
+  },
+>(accounts: T[], simulationYears: number): T[] {
+  const anchor = accounts.find((account) => account.returnMode === 'historical')
+  if (!anchor) return accounts
+  const start = anchor.historicalStartYear ??
+    getMarketPeriod(anchor.historicalPeriodId)?.preferredStartYear ??
+    minHistoricalStartYear(simulationYears)
+  return alignHistoricalAccountStartYears(
+    accounts,
+    start,
+    simulationYears,
+    anchor.historicalReturnSeries ?? LEGACY_RETURN_SERIES,
   )
 }
 
