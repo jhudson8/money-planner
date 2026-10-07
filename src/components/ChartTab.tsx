@@ -726,6 +726,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
       </section>
 
 
+
       {menu ? (
         <ReplenishMenu
           menu={menu}

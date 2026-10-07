@@ -11,6 +11,7 @@ import { SummaryTab } from './components/SummaryTab'
 import { SweepTab } from './components/SweepTab'
 import { TimelineTab } from './components/TimelineTab'
 import { ChallengeTab } from './components/ChallengeTab'
+import { EndingDistributionPanel } from './components/EndingDistributionPanel'
 import { createDefaultPlan } from './defaultPlan'
 import { shorthandUsd, usd, yearsPhrase } from './format'
 import {
@@ -74,6 +75,13 @@ function AppInner() {
   const scenario = activeScenario(library)
   const plan = scenario.plan
   const projection = useMemo(() => simulate(plan), [plan])
+  const hasHistoricalAccount = plan.accounts.some((account) => account.returnMode === 'historical')
+  const showEditingDistribution = hasHistoricalAccount &&
+    (tab === 'plan' || tab === 'income' || tab === 'expenses')
+
+  useEffect(() => {
+    if (!hasHistoricalAccount && tab === 'sweep') setTab('plan')
+  }, [hasHistoricalAccount, tab])
 
   useEffect(() => {
     logVerificationPrompt(plan, projection, scenario.name)
@@ -315,6 +323,7 @@ function AppInner() {
               endAge={endAge}
               years={years}
               depletedAge={depletedAge}
+              hasHistoricalAccount={hasHistoricalAccount}
             />
             <HeaderControls />
           </div>
@@ -362,6 +371,11 @@ function AppInner() {
         {tab === 'json' ? (
           <JsonTab key={scenario.id} plan={plan} onChange={setPlan} />
         ) : null}
+        {showEditingDistribution ? (
+          <div className="historical-outcomes-float fixed bottom-3 right-3 z-40 w-80">
+            <EndingDistributionPanel plan={plan} />
+          </div>
+        ) : null}
       </main>
     </div>
   )
@@ -404,6 +418,7 @@ function TabList({
   endAge,
   years,
   depletedAge,
+  hasHistoricalAccount,
 }: {
   tab: TabId
   onChange: (tab: TabId) => void
@@ -413,6 +428,7 @@ function TabList({
   endAge: number | null
   years: number
   depletedAge: number | null
+  hasHistoricalAccount: boolean
 }) {
   const presentation = usePresentation()
   const depleted = endNetWorth <= 0.005
@@ -438,7 +454,7 @@ function TabList({
 
   return (
     <div role="tablist" className="tabs tabs-box flex flex-wrap min-w-0 flex-1">
-      {TABS.map((item) => (
+      {TABS.filter((item) => item.id !== 'sweep' || hasHistoricalAccount).map((item) => (
         <button
           key={item.id}
           type="button"

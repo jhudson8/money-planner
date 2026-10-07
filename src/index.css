@@ -7,3 +7,14 @@ input[type="date"] {
   min-width: 0;
   max-width: 100%;
 }
+/* The fixed 20rem outcomes panel appears only when it fits beside the centered
+   72rem main column with a visible gutter instead of covering plan controls. */
+.historical-outcomes-float {
+  display: none;
+}
+
+@media (min-width: 116rem) {
+  .historical-outcomes-float {
+    display: block;
+  }
+}
