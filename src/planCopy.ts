@@ -43,6 +43,10 @@ const KIND_ORDER: Record<TimelineKind, number> = {
 export function formatWhen(timing: Timing): string {
   if (timing.type === 'now') return 'today'
   if (timing.type === 'yearsFromNow') return formatYearsFromNow(timing.value)
+  if (timing.type === 'age') {
+    const month = new Date(2000, (timing.month ?? 1) - 1, 1).toLocaleString('en-US', { month: 'long' })
+    return `${month} at age ${timing.value}`
+  }
   return formatLongDate(timing.date)
 }
 
@@ -319,12 +323,12 @@ function sourcePeriodEvents(
 ): TimelineEvent[] {
   const name = source.name.trim() || 'Untitled'
   const ordered = [...source.steps].sort(
-    (a, b) => timingToYearOffset(a.start) - timingToYearOffset(b.start),
+    (a, b) => timingToYearOffset(a.start, birthDate) - timingToYearOffset(b.start, birthDate),
   )
 
   return ordered.map((step, index) => {
-    const yearOffset = timingToYearOffset(step.start)
-    const annual = toAnnualAmount(step, originalAnnualAmount(source))
+    const yearOffset = timingToYearOffset(step.start, birthDate)
+    const annual = toAnnualAmount(step, originalAnnualAmount(source, birthDate))
     const verb =
       step.once
         ? 'is paid once'
@@ -351,6 +355,7 @@ function calendarYearForTiming(timing: Timing, yearOffset: number): number {
   if (timing.type === 'date') {
     return parseIsoDate(timing.date)?.getFullYear() ?? calendarYearAtOffset(yearOffset)
   }
+  if (timing.type === 'age') return calendarYearAtOffset(yearOffset)
   return calendarYearAtOffset(yearOffset)
 }
 

@@ -1,4 +1,4 @@
-import { ageAtYearOffset, yearsFromToday } from './dates'
+import { ageAtYearOffset, dateAtAge, yearsFromToday } from './dates'
 import { resolveAccountReturnPath } from './marketHistory'
 import { requiredMinimumDistribution, rmdStartAge } from './rmd'
 import type {
@@ -94,15 +94,19 @@ export function replenishWaitModeOrdinal(mode: ReplenishWaitMode): string {
 
 export const RMD_KINDS: AccountKind[] = ['traditional401k', 'traditionalIra', 'sepIra']
 
-export function timingToYearOffset(timing: Timing): number {
+export function timingToYearOffset(timing: Timing, birthDate?: string | null): number {
   if (timing.type === 'now') return 0
   if (timing.type === 'yearsFromNow') return Math.max(0, timing.value)
+  if (timing.type === 'age') {
+    const date = birthDate ? dateAtAge(birthDate, timing.value, timing.month ?? 1) : null
+    return date ? yearsFromToday(date) : Math.max(0, timing.value)
+  }
   return yearsFromToday(timing.date)
 }
 
-export function originalAnnualAmount(source: CashFlowSource): number {
+export function originalAnnualAmount(source: CashFlowSource, birthDate?: string | null): number {
   const ordered = [...source.steps].sort(
-    (a, b) => timingToYearOffset(a.start) - timingToYearOffset(b.start),
+    (a, b) => timingToYearOffset(a.start, birthDate) - timingToYearOffset(b.start, birthDate),
   )
   const firstAbsolute =
     ordered.find((step) => step.valueType === 'absolute' && !step.once) ??
@@ -120,15 +124,15 @@ function firstYearOfStep(startYear: number): number {
   return Math.max(0, Math.ceil(startYear - 1e-12))
 }
 
-export function sourceAmountInYear(source: CashFlowSource, yearOffset: number): number {
+export function sourceAmountInYear(source: CashFlowSource, yearOffset: number, birthDate?: string | null): number {
   if (source.disabled) return 0
   if (source.steps.length === 0) return 0
 
-  const original = originalAnnualAmount(source)
+  const original = originalAnnualAmount(source, birthDate)
   const resolved = source.steps
     .map((step) => ({
       step,
-      startYear: timingToYearOffset(step.start),
+      startYear: timingToYearOffset(step.start, birthDate),
     }))
     .sort((a, b) => a.startYear - b.startYear)
 
@@ -153,15 +157,15 @@ export function sourceAmountInYear(source: CashFlowSource, yearOffset: number): 
   return onceAmount + startAmount * (1 + growth) ** yearsIntoPeriod
 }
 
-export function totalForSources(sources: CashFlowSource[], yearOffset: number): number {
-  return sources.reduce((sum, source) => sum + sourceAmountInYear(source, yearOffset), 0)
+export function totalForSources(sources: CashFlowSource[], yearOffset: number, birthDate?: string | null): number {
+  return sources.reduce((sum, source) => sum + sourceAmountInYear(source, yearOffset, birthDate), 0)
 }
 
-export function itemizeSources(sources: CashFlowSource[], yearOffset: number): NamedAmount[] {
+export function itemizeSources(sources: CashFlowSource[], yearOffset: number, birthDate?: string | null): NamedAmount[] {
   return sources
     .filter((source) => !source.disabled)
     .map((source) => {
-      const amount = sourceAmountInYear(source, yearOffset)
+      const amount = sourceAmountInYear(source, yearOffset, birthDate)
       return {
         id: source.id,
         name: source.name.trim() || 'Untitled',
@@ -320,8 +324,8 @@ function totalOf(accounts: AccountState[]): number {
 }
 
 function yearCashFlows(plan: Plan, yearOffset: number) {
-  const incomeItems = itemizeSources(plan.incomeSources, yearOffset)
-  const expenseItems = itemizeSources(plan.expenseSources, yearOffset)
+  const incomeItems = itemizeSources(plan.incomeSources, yearOffset, plan.birthDate)
+  const expenseItems = itemizeSources(plan.expenseSources, yearOffset, plan.birthDate)
   return {
     incomeItems,
     expenseItems,

@@ -226,7 +226,9 @@ function SourceSummary({
                             ? 'Today'
                             : step.start.type === 'yearsFromNow'
                               ? `In ${step.start.value} ${step.start.value === 1 ? 'year' : 'years'}`
-                              : formatLongDate(step.start.date)}
+                              : step.start.type === 'age'
+                                ? `Age ${step.start.value} (${new Date(2000, (step.start.month ?? 1) - 1, 1).toLocaleString('en-US', { month: 'long' })})`
+                                : formatLongDate(step.start.date)}
                         </span>
                         : {describeStepAmount(step, source)}, {describeStepGrowth(step)}.
                       </li>

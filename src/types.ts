@@ -1,6 +1,7 @@
 export type Timing =
   | { type: 'now' }
   | { type: 'yearsFromNow'; value: number }
+  | { type: 'age'; value: number; month?: number }
   | { type: 'date'; date: string }
 
 export type ValueType = 'absolute' | 'relative'

@@ -42,26 +42,26 @@ function coerceFiniteNumber(value: unknown): number | null {
 
 function isTiming(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false
-  const timing = value as { type?: unknown; value?: unknown; date?: unknown }
+  const timing = value as { type?: unknown; value?: unknown; date?: unknown; month?: unknown }
   if (timing.type === 'now') return true
   if (timing.type === 'date' && typeof timing.date === 'string') return true
   return (
     (timing.type === 'yearsFromNow' || timing.type === 'age') &&
-    coerceFiniteNumber(timing.value) != null
+    coerceFiniteNumber(timing.value) != null &&
+    (timing.type !== 'age' || timing.month == null || coerceFiniteNumber(timing.month) != null)
   )
 }
 
-function migrateTiming(value: unknown, currentAge: number | undefined): Timing {
-  const timing = value as { type?: unknown; value?: unknown; date?: unknown }
+function migrateTiming(value: unknown): Timing {
+  const timing = value as { type?: unknown; value?: unknown; date?: unknown; month?: unknown }
   if (timing.type === 'now') return { type: 'now' }
   if (timing.type === 'date' && typeof timing.date === 'string') {
     return { type: 'date', date: timing.date }
   }
   const timingValue = coerceFiniteNumber(timing.value)
   if (timing.type === 'age' && timingValue != null) {
-    const years =
-      typeof currentAge === 'number' ? Math.max(0, timingValue - currentAge) : timingValue
-    return { type: 'yearsFromNow', value: years }
+    const month = coerceFiniteNumber(timing.month)
+    return { type: 'age', value: timingValue, month: month == null ? 1 : Math.min(12, Math.max(1, Math.floor(month))) }
   }
   if (timing.type === 'yearsFromNow' && timingValue != null) {
     return { type: 'yearsFromNow', value: timingValue }
@@ -148,7 +148,7 @@ function normalizeAccountsCandidate(value: unknown): unknown {
   })
 }
 
-function migrateSources(value: unknown, currentAge: number | undefined): CashFlowSource[] {
+function migrateSources(value: unknown): CashFlowSource[] {
   if (!Array.isArray(value)) return []
   return value.map((source) => {
     const item = source as CashFlowSource
@@ -159,7 +159,7 @@ function migrateSources(value: unknown, currentAge: number | undefined): CashFlo
       steps: item.steps.map(
         (step): ScheduleStep => ({
           ...step,
-          start: migrateTiming(step.start, currentAge),
+          start: migrateTiming(step.start),
           amountPeriod: step.amountPeriod === 'monthly' ? 'monthly' : 'annual',
           once: step.once === true,
         }),
@@ -404,8 +404,8 @@ export function coercePlan(value: unknown): Plan | null {
         ? Math.min(50, Math.max(0, buyDipTriggerPercent))
         : 10,
     accounts: synchronizeHistoricalAccounts(accounts, years),
-    incomeSources: migrateSources(incomeSources, currentAge),
-    expenseSources: migrateSources(expenseSources, currentAge),
+    incomeSources: migrateSources(incomeSources),
+    expenseSources: migrateSources(expenseSources),
   }
 }
 

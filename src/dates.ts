@@ -62,3 +62,11 @@ export function yearsFromToday(isoDate: string): number {
   if (ms <= 0) return 0
   return ms / (365.25 * 24 * 60 * 60 * 1000)
 }
+
+/** First day of a month in the calendar year in which the person reaches age. */
+export function dateAtAge(birthDate: string, age: number, month = 1): string | null {
+  const birth = parseIsoDate(birthDate)
+  if (!birth || !Number.isFinite(age)) return null
+  const safeMonth = Math.min(12, Math.max(1, Math.floor(month)))
+  return `${birth.getFullYear() + Math.floor(age)}-${String(safeMonth).padStart(2, '0')}-01`
+}

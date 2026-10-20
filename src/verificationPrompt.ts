@@ -36,6 +36,7 @@ function pct(n: number, digits = 2): string {
 function timingLabel(timing: Timing): string {
   if (timing.type === 'now') return 'y0'
   if (timing.type === 'yearsFromNow') return `y+${timing.value}`
+  if (timing.type === 'age') return `age ${timing.value}, month ${timing.month ?? 1}`
   return formatLongDate(timing.date)
 }
 

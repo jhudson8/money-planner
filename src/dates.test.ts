@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  addYearsIso, ageAtYearOffset, calendarYearAtOffset, formatLongDate,
+  addYearsIso, ageAtYearOffset, calendarYearAtOffset, dateAtAge, formatLongDate,
   parseIsoDate, todayIsoDate, toIsoDate, yearsFromToday,
 } from './dates'
 
@@ -22,6 +22,11 @@ describe('date parsing and formatting', () => {
 
   it('formats a readable US date', () => {
     expect(formatLongDate('2026-09-14')).toBe('Sep 14, 2026')
+  })
+
+  it('resolves an age and optional month to the first of that month', () => {
+    expect(dateAtAge('1975-07-21', 65)).toBe('2040-01-01')
+    expect(dateAtAge('1975-07-21', 65, 9)).toBe('2040-09-01')
   })
 
   it.each([[2, '2028-09-14'], [-1, '2025-09-14'], [0, '2026-09-14']])(

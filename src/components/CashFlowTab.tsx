@@ -26,6 +26,7 @@ import type { CashFlowSource, ScheduleStep } from '../types'
 export type CashFlowTabProps = {
   kind: 'income' | 'expense'
   sources: CashFlowSource[]
+  birthDate?: string | null
   onChange: (sources: CashFlowSource[]) => void
 }
 
@@ -43,6 +44,9 @@ export function describeSourceSchedule(source: CashFlowSource): string {
     startText = `Starts in ${first.start.value} ${first.start.value === 1 ? 'yr' : 'yrs'}`
   } else if (first.start.type === 'date') {
     startText = `Starts ${first.start.date}`
+  } else if (first.start.type === 'age') {
+    const month = new Date(2000, (first.start.month ?? 1) - 1, 1).toLocaleString('en-US', { month: 'short' })
+    startText = `Starts ${month} at age ${first.start.value}`
   }
 
   const hasGrowth = sorted.some((s) => !s.once && s.annualGrowthPercent !== 0)
@@ -66,7 +70,7 @@ export function describeSourceSchedule(source: CashFlowSource): string {
   return [startText, stepCount, ...extras].filter(Boolean).join(' · ')
 }
 
-export function CashFlowTab({ kind, sources, onChange }: CashFlowTabProps) {
+export function CashFlowTab({ kind, sources, birthDate, onChange }: CashFlowTabProps) {
   const presentation = usePresentation()
   const [selectedId, setSelectedId] = useState<string | null>(() => sources[0]?.id ?? null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -75,7 +79,7 @@ export function CashFlowTab({ kind, sources, onChange }: CashFlowTabProps) {
   const toggleAccent = kind === 'income' ? 'toggle-success' : 'toggle-error'
 
   const activeSources = sources.filter((s) => !s.disabled)
-  const totalThisYear = activeSources.reduce((sum, s) => sum + sourceAmountInYear(s, 0), 0)
+  const totalThisYear = activeSources.reduce((sum, s) => sum + sourceAmountInYear(s, 0, birthDate), 0)
   const totalMonthly = totalThisYear / 12
   const anyDisabled = sources.some((s) => s.disabled)
 
@@ -231,8 +235,8 @@ export function CashFlowTab({ kind, sources, onChange }: CashFlowTabProps) {
                 <div className="flex flex-col gap-2 max-h-[calc(100vh-17rem)] overflow-y-auto pr-1">
                   {filteredSources.map((source) => {
                     const isSelected = source.id === activeSource?.id
-                    const thisYear = sourceAmountInYear(source, 0)
-                    const activeThisYear = sourceAmountInYear({ ...source, disabled: false }, 0)
+                    const thisYear = sourceAmountInYear(source, 0, birthDate)
+                    const activeThisYear = sourceAmountInYear({ ...source, disabled: false }, 0, birthDate)
                     const scheduleDesc = describeSourceSchedule(source)
 
                     return (
@@ -343,6 +347,7 @@ export function CashFlowTab({ kind, sources, onChange }: CashFlowTabProps) {
             <SourceDetailPane
               source={activeSource}
               kind={kind}
+              birthDate={birthDate}
               onChange={handleUpdateSource}
               onRemove={() => handleRemoveSource(activeSource.id)}
             />
@@ -373,17 +378,19 @@ export function CashFlowTab({ kind, sources, onChange }: CashFlowTabProps) {
 function SourceDetailPane({
   source,
   kind,
+  birthDate,
   onChange,
   onRemove,
 }: {
   source: CashFlowSource
   kind: 'income' | 'expense'
+  birthDate?: string | null
   onChange: (source: CashFlowSource) => void
   onRemove: () => void
 }) {
   const presentation = usePresentation()
-  const thisYear = sourceAmountInYear(source, 0)
-  const activeThisYear = sourceAmountInYear({ ...source, disabled: false }, 0)
+  const thisYear = sourceAmountInYear(source, 0, birthDate)
+  const activeThisYear = sourceAmountInYear({ ...source, disabled: false }, 0, birthDate)
   const accentBadge = kind === 'income' ? 'badge-success' : 'badge-error'
   const toggleAccent = kind === 'income' ? 'toggle-success' : 'toggle-error'
 
@@ -497,6 +504,7 @@ function SourceDetailPane({
                   step={step}
                   index={index}
                   kind={kind}
+                  birthDate={birthDate}
                   canRemove={source.steps.length > 1}
                   canReorder={canReorder}
                   onChange={(next) => updateStep(step.id, next)}
@@ -532,6 +540,7 @@ function SortablePeriodItem({
   step,
   index,
   kind,
+  birthDate,
   canRemove,
   canReorder,
   onChange,
@@ -540,6 +549,7 @@ function SortablePeriodItem({
   step: ScheduleStep
   index: number
   kind: 'income' | 'expense'
+  birthDate?: string | null
   canRemove: boolean
   canReorder: boolean
   onChange: (step: ScheduleStep) => void
@@ -563,6 +573,7 @@ function SortablePeriodItem({
         step={step}
         index={index}
         kind={kind}
+        birthDate={birthDate}
         canRemove={canRemove}
         isDragging={isDragging}
         dragHandle={

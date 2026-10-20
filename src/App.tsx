@@ -348,6 +348,7 @@ function AppInner() {
           <CashFlowTab
             kind="income"
             sources={plan.incomeSources}
+            birthDate={plan.birthDate}
             onChange={(incomeSources) => setPlan({ ...plan, incomeSources })}
           />
         ) : null}
@@ -355,6 +356,7 @@ function AppInner() {
           <CashFlowTab
             kind="expense"
             sources={plan.expenseSources}
+            birthDate={plan.birthDate}
             onChange={(expenseSources) => setPlan({ ...plan, expenseSources })}
           />
         ) : null}

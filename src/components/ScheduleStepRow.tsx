@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { addYearsIso, todayIsoDate } from '../dates'
+import { addYearsIso, ageAtYearOffset, todayIsoDate } from '../dates'
 import { usd } from '../format'
 import { maskUsd, usePresentation } from '../presentation'
 import { NumberField } from './NumberField'
@@ -9,6 +9,7 @@ type ScheduleStepRowProps = {
   step: ScheduleStep
   index: number
   kind?: 'income' | 'expense'
+  birthDate?: string | null
   canRemove: boolean
   dragHandle?: ReactNode
   isDragging?: boolean
@@ -20,6 +21,7 @@ export function ScheduleStepRow({
   step,
   index,
   kind = 'income',
+  birthDate,
   canRemove,
   dragHandle,
   isDragging = false,
@@ -38,6 +40,12 @@ export function ScheduleStepRow({
     if (type === 'yearsFromNow') {
       const years = step.start.type === 'yearsFromNow' ? step.start.value : 5
       onChange({ ...step, start: { type: 'yearsFromNow', value: years } })
+      return
+    }
+    if (type === 'age') {
+      const age = step.start.type === 'age' ? step.start.value : (birthDate ? ageAtYearOffset(birthDate, 0) : null) ?? 65
+      const month = step.start.type === 'age' ? step.start.month ?? 1 : 1
+      onChange({ ...step, start: { type: 'age', value: age, month } })
       return
     }
     const date =
@@ -108,6 +116,7 @@ export function ScheduleStepRow({
           >
             <option value="now">Right now</option>
             <option value="yearsFromNow">In years</option>
+            <option value="age" disabled={!birthDate}>At age</option>
             <option value="date">On a date</option>
           </select>
         </fieldset>
@@ -138,6 +147,31 @@ export function ScheduleStepRow({
               }
             />
           </fieldset>
+        ) : null}
+
+        {step.start.type === 'age' ? (
+          <>
+            <NumberField
+              label="Age"
+              masked={presentation}
+              value={step.start.value}
+              min={0}
+              max={120}
+              onChange={(value) => onChange({ ...step, start: { type: 'age', value, month: step.start.type === 'age' ? step.start.month ?? 1 : 1 } })}
+            />
+            <fieldset className="fieldset min-w-0">
+              <legend className="fieldset-legend">Month</legend>
+              <select
+                className="select w-full"
+                value={step.start.month ?? 1}
+                onChange={(event) => onChange({ ...step, start: { type: 'age', value: step.start.type === 'age' ? step.start.value : 65, month: Number(event.target.value) } })}
+              >
+                {['January','February','March','April','May','June','July','August','September','October','November','December'].map((name, index) => (
+                  <option key={name} value={index + 1}>{name}</option>
+                ))}
+              </select>
+            </fieldset>
+          </>
         ) : null}
 
         <fieldset className="fieldset">

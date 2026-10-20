@@ -108,12 +108,14 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
         <CashFlowTab
           kind="income"
           sources={plan.incomeSources}
+          birthDate={plan.birthDate}
           onChange={(incomeSources) => updateSources('incomeSources', incomeSources)}
         />
       ) : section === 'expenses' ? (
         <CashFlowTab
           kind="expense"
           sources={plan.expenseSources}
+          birthDate={plan.birthDate}
           onChange={(expenseSources) => updateSources('expenseSources', expenseSources)}
         />
       ) : (

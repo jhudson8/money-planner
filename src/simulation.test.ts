@@ -1,6 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { simulate } from './simulation'
+import { simulate, sourceAmountInYear } from './simulation'
 import type { Plan } from './types'
+
+describe('age-based cash flow timing', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 29))
+  })
+
+  afterEach(() => vi.useRealTimers())
+
+  it('defaults to January and starts in the projection year containing that date', () => {
+    const source = {
+      id: 'pension', name: 'Pension', steps: [{
+        id: 'start', start: { type: 'age' as const, value: 65 }, valueType: 'absolute' as const,
+        amountPeriod: 'annual' as const, value: 24_000, annualGrowthPercent: 0, once: false,
+      }],
+    }
+    expect(sourceAmountInYear(source, 13, '1975-07-21')).toBe(0)
+    expect(sourceAmountInYear(source, 14, '1975-07-21')).toBe(24_000)
+  })
+})
 
 describe('buy-the-dip strategy', () => {
   beforeEach(() => {
