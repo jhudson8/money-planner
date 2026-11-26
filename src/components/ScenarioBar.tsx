@@ -22,11 +22,11 @@ export function ScenarioBar({
   const ordered = [...library.scenarios].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
 
   return (
-    <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
+    <div className="grid grid-cols-2 min-w-0 gap-2 sm:flex sm:flex-1 sm:flex-wrap sm:items-end">
       <fieldset className="fieldset min-w-0 py-0">
         <legend className="fieldset-legend">Scenario</legend>
         <select
-          className="select select-sm w-44 max-w-full"
+          className="select select-sm w-full sm:w-44 max-w-full"
           value={active.id}
           aria-label="Restore a saved scenario"
           onChange={(event) => onSwitch(event.target.value)}
@@ -41,7 +41,7 @@ export function ScenarioBar({
       <fieldset className="fieldset min-w-0 grow py-0">
         <legend className="fieldset-legend">Name</legend>
         <input
-          className="input input-sm w-full min-w-40"
+          className="input input-sm w-full min-w-0"
           value={active.name}
           maxLength={80}
           aria-label="Scenario name"
@@ -49,7 +49,7 @@ export function ScenarioBar({
           onBlur={() => onRename(active.name.trim() || 'Untitled')}
         />
       </fieldset>
-      <div className="flex flex-wrap gap-1 pb-0.5">
+      <div className="col-span-2 flex flex-wrap gap-1 pb-0.5">
         <button type="button" className="btn btn-primary btn-sm" onClick={onSaveAs}>
           Save as new
         </button>

@@ -232,7 +232,7 @@ export function CashFlowTab({ kind, sources, birthDate, onChange }: CashFlowTabP
                   No sources match &quot;{searchQuery}&quot;
                 </div>
               ) : (
-                <div className="flex flex-col gap-2 max-h-[calc(100vh-17rem)] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 max-h-64 lg:max-h-[calc(100vh-17rem)] overflow-y-auto pr-1">
                   {filteredSources.map((source) => {
                     const isSelected = source.id === activeSource?.id
                     const thisYear = sourceAmountInYear(source, 0, birthDate)
