@@ -12,16 +12,11 @@ body {
 
 #root {
   width: 100%;
-  max-width: 100dvw;
   min-width: 0;
-  contain: inline-size;
 }
 
 .app-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
   width: 100%;
-  max-width: 100dvw;
   min-width: 0;
 }
 
@@ -29,31 +24,6 @@ body {
 .app-shell > main {
   width: 100%;
   min-width: 0;
-}
-
-.app-shell > main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 1.5rem;
-}
-
-/* Charts retain pixel dimensions for a frame when device emulation resizes.
-   Keep those dimensions from expanding the layout while ResizeObserver runs. */
-.recharts-responsive-container {
-  min-width: 0;
-  max-width: 100%;
-  contain: inline-size;
-}
-
-.recharts-wrapper,
-.recharts-wrapper > .recharts-surface,
-.recharts-legend-wrapper {
-  max-width: 100%;
-}
-
-.recharts-default-legend {
-  overflow-wrap: anywhere;
 }
 
 input[type="date"] {
@@ -100,10 +70,6 @@ main .input,
 main .select,
 main .textarea {
   max-width: 100%;
-}
-
-main .card-body {
-  width: 100%;
 }
 
 main .fieldset-legend {
