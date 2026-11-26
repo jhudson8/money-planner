@@ -60,6 +60,11 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
+function tabFromHash(): TabId {
+  const id = window.location.hash.slice(1)
+  return TABS.find((item) => item.id === id)?.id ?? 'plan'
+}
+
 export default function App() {
   return (
     <PresentationProvider>
@@ -71,7 +76,13 @@ export default function App() {
 
 function AppInner() {
   const [library, setLibrary] = useState<ScenarioLibrary>(() => loadLibrary())
-  const [tab, setTab] = useState<TabId>('plan')
+  const [tab, setCurrentTab] = useState<TabId>(tabFromHash)
+  function setTab(nextTab: TabId) {
+    setCurrentTab(nextTab)
+    if (window.location.hash !== `#${nextTab}`) {
+      window.location.hash = nextTab
+    }
+  }
   const scenario = activeScenario(library)
   const plan = scenario.plan
   const projection = useMemo(() => simulate(plan), [plan])
@@ -80,8 +91,19 @@ function AppInner() {
     (tab === 'plan' || tab === 'income' || tab === 'expenses')
 
   useEffect(() => {
-    if (!hasHistoricalAccount && tab === 'sweep') setTab('plan')
-  }, [hasHistoricalAccount, tab])
+    function syncTabFromHash() {
+      const requestedTab = tabFromHash()
+      const nextTab = requestedTab === 'sweep' && !hasHistoricalAccount ? 'plan' : requestedTab
+      setCurrentTab(nextTab)
+      if (window.location.hash !== `#${nextTab}`) {
+        window.history.replaceState(window.history.state, '', `#${nextTab}`)
+      }
+    }
+
+    syncTabFromHash()
+    window.addEventListener('hashchange', syncTabFromHash)
+    return () => window.removeEventListener('hashchange', syncTabFromHash)
+  }, [hasHistoricalAccount])
 
   useEffect(() => {
     logVerificationPrompt(plan, projection, scenario.name)
