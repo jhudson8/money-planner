@@ -309,7 +309,7 @@ export function AccountsEditor({ plan, projection, onChange }: AccountsEditorPro
                   No accounts match &quot;{searchQuery}&quot;
                 </div>
               ) : (
-                <div className="flex flex-col gap-4 max-h-[calc(100vh-17rem)] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-4 max-h-64 lg:max-h-[calc(100vh-17rem)] overflow-y-auto pr-1">
                   {/* Short-Term Wallet Section */}
                   {showWallet && wallet ? (
                     <div className="flex flex-col gap-1.5">

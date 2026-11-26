@@ -282,7 +282,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="stats stats-vertical xl:stats-horizontal w-full bg-base-100 shadow-sm overflow-x-hidden">
+      <section className="grid min-w-0 grid-cols-1 xl:grid-cols-2 w-full rounded-box bg-base-100 shadow-sm divide-y xl:divide-y-0 xl:divide-x divide-base-300">
         <div className="stat">
           <div className="stat-title whitespace-normal">Starting-balance weighted return</div>
           <div className="stat-value text-xl sm:text-2xl whitespace-normal">
@@ -311,18 +311,6 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
         </div>
       </section>
 
-      {projection.depletedInYear !== null ? (
-        <div className="alert alert-warning">
-          <span>
-            Required spending first cannot be paid in full
-            {depletedPoint?.age != null
-              ? ` at age ${depletedPoint.age}`
-              : ` in year ${projection.depletedInYear}`}
-            . Lower spending or raise the growth rates to keep the balance funded.
-          </span>
-        </div>
-      ) : null}
-
       {historicalAccount && marketPath ? (
         <section className="rounded-box border border-base-300 bg-base-100 px-4 py-3 shadow-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -349,6 +337,18 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
             <span>{historicalStartMax}</span>
           </div>
         </section>
+      ) : null}
+
+      {projection.depletedInYear !== null ? (
+        <div className="alert alert-warning">
+          <span>
+            Required spending first cannot be paid in full
+            {depletedPoint?.age != null
+              ? ` at age ${depletedPoint.age}`
+              : ` in year ${projection.depletedInYear}`}
+            . Lower spending or raise the growth rates to keep the balance funded.
+          </span>
+        </div>
       ) : null}
 
       <section className="card min-w-0 bg-base-100 shadow-sm">
@@ -379,7 +379,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
           <p className="text-xs text-base-content/60">{showAge ? 'Age' : 'Years from now'}</p>
           <div
             ref={chartWrapRef}
-            className="h-72 w-full min-w-0 sm:h-80"
+            className="h-96 w-full min-w-0 sm:h-80"
             onMouseMove={(event) => {
               pointer.current = { x: event.clientX, y: event.clientY }
             }}
@@ -573,7 +573,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
 
           {marketPath && historicalAccount ? (
             <>
-              <div className="h-72 w-full min-w-0 sm:h-80">
+              <div className="h-96 w-full min-w-0 sm:h-80">
                 <ResponsiveContainer>
                   <ComposedChart data={marketChartData} margin={{ top: 8, right: 8, left: 0, bottom: 18 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.25} />

@@ -71,10 +71,10 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
       {/* Sub-nav section selector within Plan */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" className="tabs tabs-box bg-base-100 p-1 border border-base-200 shadow-xs">
+        <div role="tablist" className="tabs tabs-box flex flex-wrap bg-base-100 p-1 border border-base-200 shadow-xs">
           <button
             type="button"
             role="tab"
@@ -123,8 +123,8 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
           <section className="card bg-base-100 shadow-sm border border-base-200">
             <div className="card-body">
               <h2 className="card-title">Plan Overview</h2>
-              <div className="flex max-w-5xl flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="flex w-full min-w-0 max-w-5xl flex-col gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <fieldset className="fieldset min-w-0">
                     <legend className="fieldset-legend">Total savings today</legend>
                     <div className="input w-full min-w-0">
@@ -146,7 +146,7 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
                     </p>
                   </fieldset>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <fieldset className="fieldset min-w-0">
                     <legend className="fieldset-legend">Date of birth</legend>
                     <input
@@ -191,7 +191,7 @@ export function PlanTab({ plan, projection, onChange, onNavigateTab }: PlanTabPr
                   hint="Converts the ending nominal balance to today's purchasing power; it does not change cash flows or returns."
                   onChange={(inflationPercent) => patch({ inflationPercent })}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <NumberField
                     label="Replenish window"
                     masked={presentation}

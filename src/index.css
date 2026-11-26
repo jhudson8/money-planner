@@ -3,9 +3,152 @@
   themes: corporate --default, business --prefersdark;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overscroll-behavior-x: none;
+}
+
+#root {
+  width: 100%;
+  max-width: 100dvw;
+  min-width: 0;
+  contain: inline-size;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 100dvw;
+  min-width: 0;
+}
+
+.app-shell > header,
+.app-shell > main {
+  width: 100%;
+  min-width: 0;
+}
+
+.app-shell > main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 1.5rem;
+}
+
+/* Charts retain pixel dimensions for a frame when device emulation resizes.
+   Keep those dimensions from expanding the layout while ResizeObserver runs. */
+.recharts-responsive-container {
+  min-width: 0;
+  max-width: 100%;
+  contain: inline-size;
+}
+
+.recharts-wrapper,
+.recharts-wrapper > .recharts-surface,
+.recharts-legend-wrapper {
+  max-width: 100%;
+}
+
+.recharts-default-legend {
+  overflow-wrap: anywhere;
+}
+
 input[type="date"] {
   min-width: 0;
   max-width: 100%;
+}
+
+.navigation-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  margin: 0;
+  width: min(24rem, calc(100vw - 2rem));
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  padding: 0 0 env(safe-area-inset-bottom);
+  border: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.navigation-drawer::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+html:has(.navigation-drawer[open]) {
+  overflow: hidden;
+}
+
+/* Let long names and nested grid/flex panels fit narrow viewports. */
+main .card,
+main .card-body,
+main .grid > *,
+main .flex > *,
+main fieldset,
+main .stat {
+  min-width: 0;
+}
+
+main .card,
+main .card-body,
+main .tabs,
+main .input,
+main .select,
+main .textarea {
+  max-width: 100%;
+}
+
+main .card-body {
+  width: 100%;
+}
+
+main .fieldset-legend {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 639px) {
+  main {
+    overflow-wrap: anywhere;
+  }
+
+  main .card-body {
+    padding: 1rem;
+  }
+
+  main .stat {
+    padding: 1rem;
+  }
+
+  main .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .btn,
+  .tab,
+  .input,
+  .select {
+    min-height: 2.75rem;
+  }
+
+  /* Keep iOS from zooming the page when a form field receives focus. */
+  input:not([type="range"]):not([type="checkbox"]),
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  .fieldset-legend,
+  .stat-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 /* The fixed 20rem outcomes panel appears only when it fits beside the centered
    72rem main column with a visible gutter instead of covering plan controls. */

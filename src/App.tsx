@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Toaster, toast } from 'sonner'
 import { PresentationProvider, pctVsStart, usePresentation, useSetPresentation } from './presentation'
 import { CashFlowTab } from './components/CashFlowTab'
@@ -77,7 +77,9 @@ export default function App() {
 function AppInner() {
   const [library, setLibrary] = useState<ScenarioLibrary>(() => loadLibrary())
   const [tab, setCurrentTab] = useState<TabId>(tabFromHash)
+  const navigationRef = useRef<HTMLDialogElement>(null)
   function setTab(nextTab: TabId) {
+    navigationRef.current?.close()
     setCurrentTab(nextTab)
     if (window.location.hash !== `#${nextTab}`) {
       window.location.hash = nextTab
@@ -92,6 +94,7 @@ function AppInner() {
 
   useEffect(() => {
     function syncTabFromHash() {
+      navigationRef.current?.close()
       const requestedTab = tabFromHash()
       const nextTab = requestedTab === 'sweep' && !hasHistoricalAccount ? 'plan' : requestedTab
       setCurrentTab(nextTab)
@@ -104,6 +107,15 @@ function AppInner() {
     window.addEventListener('hashchange', syncTabFromHash)
     return () => window.removeEventListener('hashchange', syncTabFromHash)
   }, [hasHistoricalAccount])
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)')
+    function closeNavigationOnDesktop() {
+      if (desktop.matches) navigationRef.current?.close()
+    }
+    desktop.addEventListener('change', closeNavigationOnDesktop)
+    return () => desktop.removeEventListener('change', closeNavigationOnDesktop)
+  }, [])
 
   useEffect(() => {
     logVerificationPrompt(plan, projection, scenario.name)
@@ -317,18 +329,41 @@ function AppInner() {
       ? (projection.points.find((p) => p.yearOffset === projection.depletedInYear)?.age ?? null)
       : null
 
+  const scenarioControls = (
+    <ScenarioBar
+      library={library}
+      onSwitch={switchScenario}
+      onRename={renameScenario}
+      onSaveAs={saveAsNew}
+      onNewExample={newExample}
+      onDelete={deleteScenario}
+    />
+  )
+
   return (
-    <div className="min-h-screen bg-base-200" data-presentation={presentation ? '1' : '0'}>
+    <div className="app-shell min-h-screen bg-base-200" data-presentation={presentation ? '1' : '0'}>
       <header className="sticky top-0 z-20 bg-base-100 shadow-sm">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3">
-          <ScenarioBar
-            library={library}
-            onSwitch={switchScenario}
-            onRename={renameScenario}
-            onSaveAs={saveAsNew}
-            onNewExample={newExample}
-            onDelete={deleteScenario}
-          />
+        <div className="flex h-16 items-center gap-3 px-3 sm:px-4 lg:hidden">
+          <button
+            type="button"
+            className="btn btn-ghost btn-square shrink-0"
+            aria-label="Open navigation"
+            aria-haspopup="dialog"
+            aria-controls="mobile-navigation"
+            onClick={() => navigationRef.current?.showModal()}
+          >
+            <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-semibold">{TABS.find((item) => item.id === tab)?.label}</div>
+            <div className="truncate text-xs text-base-content/60">{scenario.name.trim() || 'Untitled'}</div>
+          </div>
+          {presentation ? <span className="badge badge-sm shrink-0">Presenting</span> : null}
+        </div>
+        <div className="mx-auto hidden max-w-6xl flex-col gap-3 px-4 py-3 lg:flex">
+          {scenarioControls}
           <div className="flex flex-wrap items-center gap-2">
             <TabList
               tab={tab}
@@ -357,7 +392,51 @@ function AppInner() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 overflow-x-hidden">
+      <dialog
+        ref={navigationRef}
+        id="mobile-navigation"
+        className="navigation-drawer bg-base-100 text-base-content shadow-xl"
+        aria-labelledby="navigation-title"
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return
+          const bounds = event.currentTarget.getBoundingClientRect()
+          if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            event.currentTarget.close()
+          }
+        }}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-base-300 p-4">
+          <h2 id="navigation-title" className="text-lg font-semibold">Money Planner</h2>
+          <button type="button" className="btn btn-ghost btn-square" aria-label="Close navigation" onClick={() => navigationRef.current?.close()}>
+            <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="m6 6 12 12M6 18 18 6" />
+            </svg>
+          </button>
+        </div>
+        <nav aria-label="Pages" className="flex flex-col gap-1 p-3">
+          {TABS.filter((item) => item.id !== 'sweep' || hasHistoricalAccount).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={tab === item.id ? 'page' : undefined}
+              className={`btn min-h-11 h-auto justify-start whitespace-normal py-3 text-left ${tab === item.id ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <section aria-label="Scenario settings" className="border-t border-base-300 p-4">
+          {scenarioControls}
+        </section>
+        <section aria-label="Display settings" className="flex items-center gap-3 border-t border-base-300 p-4">
+          <span className="text-sm font-semibold">Display</span>
+          <HeaderControls />
+        </section>
+        {presentation ? <p className="px-4 pb-4 text-sm text-base-content/70">Presentation mode hides dollar amounts and shows chart changes as percentages.</p> : null}
+      </dialog>
+
+      <main className="mx-auto max-w-6xl min-w-0 px-3 py-4 sm:px-4 sm:py-6">
         {tab === 'plan' ? (
           <PlanTab
             plan={plan}
@@ -477,7 +556,7 @@ function TabList({
       : `Projected net worth after ${years} years${endAge != null ? ` (age ${endAge})` : ''}: ${usd.format(endNetWorth)} · Started at ${usd.format(startNetWorth)} today`
 
   return (
-    <div role="tablist" className="tabs tabs-box flex flex-wrap min-w-0 flex-1">
+    <div role="tablist" className="tabs tabs-box hidden sm:flex flex-wrap min-w-0 flex-1">
       {TABS.filter((item) => item.id !== 'sweep' || hasHistoricalAccount).map((item) => (
         <button
           key={item.id}
