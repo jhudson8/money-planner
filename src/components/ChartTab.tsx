@@ -118,6 +118,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
   const historicalStartMin = minHistoricalStartYear(years)
   const historicalStartMax = maxHistoricalStartYear(years)
   const historicalStart = marketPath?.startYear ?? historicalStartMin
+  const historicalPathKey = `${historicalAccount?.historicalReturnSeries ?? 'flat'}:${historicalStart}:${years}`
 
   function setHistoricalStartYear(value: number) {
     if (!historicalAccount) return
@@ -390,7 +391,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
               openMenu(point, event.clientX, event.clientY, false)
             }}
           >
-            <ResponsiveContainer>
+            <ResponsiveContainer key={historicalPathKey}>
               <ComposedChart
                 data={chartData}
                 margin={{ top: 8, right: 8, left: 0, bottom: 18 }}
@@ -574,7 +575,7 @@ export function ChartTab({ plan, projection, onChange }: ChartTabProps) {
           {marketPath && historicalAccount ? (
             <>
               <div className="h-96 w-full min-w-0 sm:h-80">
-                <ResponsiveContainer>
+                <ResponsiveContainer key={historicalPathKey}>
                   <ComposedChart data={marketChartData} margin={{ top: 8, right: 8, left: 0, bottom: 18 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                     <XAxis dataKey="calendarYear" tickLine={false} minTickGap={24} />
